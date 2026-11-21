@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive PHP Shell (Uniter)</title>
+    
+    <!-- jQuery Terminal CSS -->
+    <link rel="stylesheet" href="./assets/jquery.terminal.min.css"/>
+    <!-- PrismJS CSS for PHP Syntax Highlighting -->
+    <link rel="stylesheet" href="./assets/prism-coy.min.css"/>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+        }
+        /* Fix PrismJS background clash inside jQuery Terminal */
+        .terminal .token {
+            background: transparent !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. jQuery -->
+    <script src="./assets/jquery.min.js"></script>
+    
+    <!-- 2. PrismJS + PHP Language Definition (Required for $.terminal.syntax('php')) -->
+    <script src="./assets/prism.min.js"></script>
+    <script src="./assets/prism-markup-templating.min.js"></script>
+    <script src="./assets/prism-php.min.js"></script>
+    
+    <!-- 3. jQuery Terminal + Prism Syntax Plugin -->
+    <script src="./assets/jquery.terminal.min.js"></script>
+    <script src="./assets/prism.js"></script>
+    
+    <!-- 4. Uniter Standalone Browser Bundle -->
+    <script src="./assets/uniter.js"></script>
+
+    <script>
+        $(function() {
+            // Initialize Uniter PHP engine first so it is ready when commands run
+            const php = uniter.createEngine('PHP');
+            
+			const appBridge = {
+				version: '1.0.0',
+
+				// Read a CSS style or attribute from the page
+				getStyle: function(selector, prop) {
+					return $(selector).css(prop);
+				},
+
+				// Update page text and return how many elements matched
+				setText: function(selector, text) {
+					const matches = $(selector);
+					matches.text(text);
+					return matches.length;
+				},
+
+				// Fetch a URL and pass the response text into a PHP closure/callable
+				fetchText: function(url, phpCallback) {
+					fetch(url)
+						.then(function(res) { return res.text(); })
+						.then(function(body) {
+							if (typeof phpCallback === 'function') {
+								phpCallback(body);
+							}
+						})
+						.catch(function(err) {
+							term.error(err.message || String(err));
+						});
+				}
+			};
+
+			// Expose the bridge object as $bridge in PHP
+			php.expose(appBridge, 'bridge');
+
+			// Expose a plain value or object literal as $meta in PHP
+			php.expose({
+				engine: 'Uniter',
+				environment: 'browser'
+			}, 'meta');
+
+            // Enable PHP syntax highlighting via PrismJS
+            $.terminal.syntax('php');
+
+            // PHP __toString magic method helper for jQuery objects
+            $.fn.__toString = function() {
+                return `#<jQuery(${this.length})>`;
+            };
+
+            // Initialize jQuery Terminal
+            const term = $('body').terminal(function(command) {
+                if (command.trim() === '') {
+                    return;
+                }
+                
+                // Auto-append semicolon if omitted for interactive convenience
+                let code = command.trim();
+                if (!code.endsWith(';') && !code.endsWith('}')) {
+                    code += ';';
+                }
+
+                // Uniter's execute() returns a Promise
+                php.execute(`<?php ${code}`).fail(function(err) {
+                    term.error(err.message || String(err));
+                });
+            }, {
+                greetings: 'Interactive PHP Shell (Uniter)\nType PHP code (e.g., echo "Hello"; or $jQuery("body")->css("background", "#111");)\n',
+                name: 'php',
+                prompt: 'php > '
+            });
+
+            // Pipe PHP stdout and stderr to the terminal
+            php.getStdout().on('data', function(text) {
+                term.echo(text, { newline: false });
+            });
+
+            php.getStderr().on('data', function(text) {
+                term.error(text);
+            });
+
+			async function includePhp(url) {
+				const res = await fetch(url);
+				if (!res.ok) {
+					term.error(`Failed to include ${url}: HTTP ${res.status}`);
+					return;
+				}
+				const code = await res.text();
+				// Strip leading <?php if present so we don't double-open tags
+				const body = code.replace(/^\s*<\?(?:php)?/i, '');
+				return php.execute(`<?php ${body}`).fail(function(err) {
+					term.error(err.message || String(err));
+				});
+			}
+            // Expose JS objects to the PHP runtime
+            php.expose(term, 'term');
+            php.expose($, 'jQuery');
+			php.expose(function(url) {
+				// Note: fetch() is async, whereas Uniter execution expects synchronous/promise flow
+				return includePhp(url);
+			}, 'include_remote');
+			// Expose as a PHP variable/callable: $includePhp("strings.php")
+			php.expose(includePhp, 'includePhp');
+			php.expose(function(janee) {
+					term.set_mask(false);
+					return janee;
+				}, 'maskuit' );
+			php.expose(function(janee) {
+					term.set_mask('*');
+					return janee;
+				}, 'maskaan' );
+				
+
+			php.expose({
+				readline: function(promptText, onLine, secret) {
+					const isSecret = Boolean(secret);
+
+					function clearMask() {
+						if (isSecret) {
+							term.set_mask(false);
+						}
+					}
+
+					if (isSecret) {
+						term.set_mask('*');
+					}
+
+					term.read(
+						String(promptText ?? '> '),
+						function(input) {
+							try {
+								if (typeof onLine === 'function') {
+									onLine(input);
+								}
+							} finally {
+								clearMask();
+							}
+						},
+						function() {
+							clearMask();
+						}
+					);
+				}
+			}, 'io');			
+			
+			includePhp('stdlib.php');
+        });
+    </script>
+</body>
+</html>
+
