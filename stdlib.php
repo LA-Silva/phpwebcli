@@ -42,6 +42,10 @@ function myinput($arg1, $secret = false) {
 }
 
 
+unit_test(true);
+dates_unit_test(true);
+cron_unit_test(true);
+
 $loginname = myinput("Login:");
 echo "hello " . $loginname . "\n";
 
