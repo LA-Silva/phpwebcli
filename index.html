@@ -154,35 +154,63 @@
 				}, 'maskaan' );
 				
 
+			const readQueue = [];
+			let isReading = false;
+
+			function processReadQueue() {
+				if (isReading || readQueue.length === 0) {
+					return;
+				}
+				isReading = true;
+				const item = readQueue.shift();
+				const previousMask = term.get_mask();
+				let finished = false;
+
+				function completeRead() {
+					if (finished) {
+						return;
+					}
+					finished = true;
+					setTimeout(function() {
+						if (term.get_mask() !== previousMask) {
+							term.set_mask(previousMask);
+						}
+						isReading = false;
+						processReadQueue();
+					}, 0);
+				}
+
+				term.read(
+					item.promptText,
+					function(input) {
+						try {
+							if (typeof item.onLine === 'function') {
+								item.onLine(input);
+							}
+						} finally {
+							completeRead();
+						}
+					},
+					function() {
+						completeRead();
+					}
+				);
+
+				if (item.isSecret) {
+					term.set_mask('*');
+				} else if (term.get_mask()) {
+					term.set_mask(false);
+				}
+			}
+
 			php.expose({
 				readline: function(promptText, onLine, secret) {
-					const isSecret = Boolean(secret);
-
-					function clearMask() {
-						if (isSecret) {
-							term.set_mask(false);
-						}
-					}
-
-					if (isSecret) {
-						term.set_mask('*');
-					}
-
-					term.read(
-						String(promptText ?? '> '),
-						function(input) {
-							try {
-								if (typeof onLine === 'function') {
-									onLine(input);
-								}
-							} finally {
-								clearMask();
-							}
-						},
-						function() {
-							clearMask();
-						}
-					);
+					readQueue.push({
+						promptText: String(promptText ?? '> '),
+						onLine: onLine,
+						isSecret: Boolean(secret)
+					});
+					processReadQueue();
 				}
 			}, 'io');			
 			
