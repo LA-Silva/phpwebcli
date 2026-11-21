@@ -166,7 +166,7 @@
 				const previousMask = term.get_mask();
 				let finished = false;
 
-				function completeRead() {
+				function completeRead(wasCancelled, value) {
 					if (finished) {
 						return;
 					}
@@ -176,6 +176,9 @@
 							term.set_mask(previousMask);
 						}
 						isReading = false;
+						if (typeof item.onComplete === 'function') {
+							item.onComplete(wasCancelled, value);
+						}
 						processReadQueue();
 					}, 0);
 				}
@@ -188,11 +191,11 @@
 								item.onLine(input);
 							}
 						} finally {
-							completeRead();
+							completeRead(false, input);
 						}
 					},
 					function() {
-						completeRead();
+						completeRead(true, null);
 					}
 				);
 
@@ -203,14 +206,43 @@
 				}
 			}
 
-			php.expose({
-				readline: function(promptText, onLine, secret) {
+			function enqueueRead(promptText, secret, onLine) {
+				return new Promise(function(resolve) {
 					readQueue.push({
 						promptText: String(promptText ?? '> '),
+						isSecret: Boolean(secret),
 						onLine: onLine,
-						isSecret: Boolean(secret)
+						onComplete: function(_wasCancelled, value) {
+							resolve(value);
+						}
 					});
 					processReadQueue();
+				});
+			}
+
+			php.expose({
+				read: function(promptText, secret) {
+					return php.createFFIResult(
+						function() {
+							throw new Error('io->read requires Uniter async mode');
+						},
+						function() {
+							return enqueueRead(promptText, secret);
+						}
+					);
+				},
+				readline: function(promptText, onLine, secret) {
+					if (typeof onLine !== 'function') {
+						return php.createFFIResult(
+							function() {
+								throw new Error('io->readline without callback requires Uniter async mode');
+							},
+							function() {
+								return enqueueRead(promptText, secret);
+							}
+						);
+					}
+					enqueueRead(promptText, secret, onLine);
 				}
 			}, 'io');			
 			

@@ -36,18 +36,20 @@ echo "          V:::::V          P::::::::P          S::::::SSSSSS:::::S\n";
 echo "           V:::V           P::::::::P          S:::::::::::::::SS \n";
 echo "            VVV            PPPPPPPPPP           SSSSSSSSSSSSSSS   \n";
 
-function myinput($arg1) {
-	global $io,$term;
-	$io->readline($arg1, function($line) use ($term) {
-		$retval = trim($line);
-	}, false);	
-	return $retval;
+function myinput($arg1, $secret = false) {
+	global $io;
+	return $io->read($arg1, $secret);
 }
 
-//$jQuery('body')->terminal()->set_mask(false);
 
-$io->readline("Login: ", function($s) use ($term) { $term->echo("ok"); }, false);
-$io->readline("Password: ", function($s) use ($term) { $term->echo("ok"); }, true);
+$loginname = myinput("Login:");
+echo "hello " . $loginname . "\n";
+
+$passwd = myinput("password:",true);
+echo "you password was:" . $passwd;
+
+//$io->readline("Login: ", function($s) use ($term) { $term->echo("ok"); }, false);
+//$io->readline("Password: ", function($s) use ($term) { $term->echo("ok"); }, true);
 
 //$passwd = myinput("password:");
 //$jQuery('body')->terminal()->set_mask("*");
