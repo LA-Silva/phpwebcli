@@ -159,6 +159,13 @@ function space($count) {
 	return $out;
 }
 
+if (!function_exists('split')) {
+	function split($pattern, $string = null, $limit = 0) {
+		global $bridge;
+		return $bridge->perlSplit($pattern, $string, $limit);
+	}
+}
+
 function unit_test($verbose = false) {
 	$cases = [
 		['len("hello")', len('hello'), 5],
@@ -205,6 +212,15 @@ function unit_test($verbose = false) {
 		['space(-2)', space(-2), ''],
 		['sprintf("%s-%04d-%.2f-%X-%c", "ok", 7, 3.14159, 255, 65)', sprintf('%s-%04d-%.2f-%X-%c', 'ok', 7, 3.14159, 255, 65), 'ok-0007-3.14-FF-A'],
 		['sprintf("100%% %2$s %1$d", 9, "hi")', sprintf('100%% %2$s %1$d', 9, 'hi'), '100% hi 9'],
+		['split(",", "a,b,c")', split(',', 'a,b,c'), ['a', 'b', 'c']],
+		['split(",", "a,b,,") strips trailing empties', split(',', 'a,b,,'), ['a', 'b']],
+		['split(",", "a,b,,", -1) keeps trailing empties', split(',', 'a,b,,', -1), ['a', 'b', '', '']],
+		['split(",", "a,b,c,d", 2) preserves remainder', split(',', 'a,b,c,d', 2), ['a', 'b,c,d']],
+		['split(" ", "  foo   bar  ") Perl space mode', split(' ', '  foo   bar  '), ['foo', 'bar']],
+		['split("  foo   bar  ") 1-arg whitespace split', split('  foo   bar  '), ['foo', 'bar']],
+		['split("/[,;]\\s*/", "red, green;blue") delimited regex', split('/[,;]\s*/', 'red, green;blue'), ['red', 'green', 'blue']],
+		['split("/([+-])/", "10+20-30") capturing groups', split('/([+-])/', '10+20-30'), ['10', '+', '20', '-', '30']],
+		['split("", "abc") splits characters', split('', 'abc'), ['a', 'b', 'c']],
 	];
 
 	$passed = 0;

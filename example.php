@@ -203,6 +203,8 @@ echo "ltrim='" . ltrim($sample) . "', rtrim='" . rtrim($sample) . "'\n";
 echo "strcmp('10', '2')=" . strcmp('10', '2') . ", stricmp('PHP', 'php')=" . stricmp('PHP', 'php') . "\n";
 echo "space: '[" . space(4) . "]'\n";
 echo sprintf("sprintf: %s #%03d -> %.2f (hex=%X, char=%c)\n", "Item", 7, 12.345, 255, 65);
+echo "split('/[,;]\\s*/'): " . implode('|', split('/[,;]\s*/', 'one, two;three')) . "\n";
+echo "split(' ') Perl mode: " . implode('|', split(' ', '  alpha   beta  ')) . "\n";
 
 echo "\n=== 9. Oracle-Style Date & Number Functions ===\n";
 echo "sysdate()=" . sysdate() . "\n";

@@ -85,6 +85,118 @@
 					return sa === sb ? 0 : (sa < sb ? -1 : 1);
 				},
 
+				// Perl-compatible split($pattern, $string, $limit)
+				perlSplit: function(pattern, str, limit) {
+					let pat = pattern;
+					let target;
+					if (str === null || str === undefined) {
+						target = String(pat ?? '');
+						pat = ' ';
+					} else {
+						target = String(str);
+					}
+
+					const lim = (limit === null || limit === undefined) ? 0 : (Math.trunc(Number(limit)) || 0);
+					if (lim === 1) {
+						return [target];
+					}
+
+					let regexBody = null;
+					let regexFlags = '';
+					let isSpaceMode = false;
+
+					const patStr = String(pat ?? '');
+					if (patStr === ' ') {
+						isSpaceMode = true;
+						target = target.replace(/^\s+/, '');
+						if (target === '') {
+							return [];
+						}
+						regexBody = '\\s+';
+					} else {
+						const delimMatch = /^([/#~])([\s\S]*)\1([imsux]*)$/i.exec(patStr);
+						if (delimMatch) {
+							regexBody = delimMatch[2];
+							const rawFlags = delimMatch[3].toLowerCase();
+							for (let i = 0; i < rawFlags.length; i++) {
+								const ch = rawFlags.charAt(i);
+								if ((ch === 'i' || ch === 'm' || ch === 's' || ch === 'u') && regexFlags.indexOf(ch) === -1) {
+									regexFlags += ch;
+								}
+							}
+						} else {
+							regexBody = patStr;
+						}
+					}
+
+					if (regexBody === '') {
+						const chars = [];
+						if (lim > 1) {
+							const maxSplits = lim - 1;
+							let i = 0;
+							while (i < target.length && chars.length < maxSplits) {
+								chars.push(target.charAt(i));
+								i++;
+							}
+							chars.push(target.slice(i));
+							return chars;
+						}
+						if (target === '') {
+							return lim < 0 ? [''] : [];
+						}
+						for (let i = 0; i < target.length; i++) {
+							chars.push(target.charAt(i));
+						}
+						return chars;
+					}
+
+					let re;
+					try {
+						re = new RegExp(regexBody, regexFlags + 'g');
+					} catch (_e) {
+						const escaped = regexBody.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+						re = new RegExp(escaped, regexFlags + 'g');
+					}
+
+					const out = [];
+					let lastIdx = 0;
+					let splitCount = 0;
+					const maxSplits = lim > 1 ? lim - 1 : Infinity;
+
+					while (splitCount < maxSplits) {
+						const m = re.exec(target);
+						if (!m) {
+							break;
+						}
+						if (m[0].length === 0 && m.index === lastIdx) {
+							if (re.lastIndex >= target.length) {
+								break;
+							}
+							re.lastIndex = m.index + 1;
+							continue;
+						}
+						out.push(target.slice(lastIdx, m.index));
+						for (let g = 1; g < m.length; g++) {
+							out.push(m[g] === undefined ? '' : m[g]);
+						}
+						lastIdx = m.index + m[0].length;
+						splitCount++;
+						if (m[0].length === 0) {
+							re.lastIndex = lastIdx + 1;
+						}
+					}
+
+					out.push(target.slice(lastIdx));
+
+					if (lim === 0 || isSpaceMode && lim === 0) {
+						while (out.length > 0 && out[out.length - 1] === '') {
+							out.pop();
+						}
+					}
+
+					return out;
+				},
+
 				// Oracle-like current date/time
 				sysdate: function(format) {
 					const now = new Date();
