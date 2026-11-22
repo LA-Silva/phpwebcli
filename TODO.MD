@@ -38,7 +38,7 @@
 ### Operators & Expressions
 - [x] Arithmetic (`+`, `-`, `*`, `/`, `%`), string concatenation (`.`), bitwise (`&`, `|`, `^`, `~`, `<<`, `>>`), increment/decrement (`++`, `--`)
 - [x] Comparison (`==`, `===`, `!=`, `!==`, `<`, `<=`, `>`, `>=`)
-- [x] Logical (`&&`, `||`, `!`, `and`, `or`, `xor`)
+- [x] Logical (`&&`, `||`, `!`, `and`, `or`)
 - [x] Ternary operator (`?:` and shorthand `?:`)
 - [x] Null coalescing operator (`??`)
 - [x] Error control / suppression operator (`@`)
@@ -60,7 +60,7 @@
 - [x] `exit` / `die`
 
 ### Functions & Closures
-- [x] `function` declarations (default values, by-reference params, variadic `...$args`, type hints: `array`, `callable`, `iterable`, `void`, class/interface types)
+- [x] `function` declarations (default values, by-reference params, `func_get_args()`, type hints: `array`, `callable`, `iterable`, `void`, class/interface types)
 - [x] Anonymous functions / closures (`function (...) use (...) { ... }`)
 - [x] Dynamic function calls (`$fn(...)`)
 

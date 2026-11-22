@@ -1,0 +1,240 @@
+<?php
+/**
+ * example.php — Comprehensive showcase of PHP language constructs and
+ * custom CLI functions available in this release.
+ *
+ * How to run from the browser PHP CLI (php > prompt):
+ *   $includePhp('example.php');
+ *
+ * Or using the remote include alias:
+ *   $include_remote('example.php');
+ */
+
+echo "=== 1. Output & Tags ===\n";
+echo "Hello from echo!\n";
+print "Hello from print!\n";
+
+echo "\n=== 2. Variables, Scope, Constants & Magic Constants ===\n";
+$greeting = "PHPWebCLI";
+$varName = "greeting";
+echo "Variable variable: " . $$varName . "\n";
+
+$orig = 10;
+$ref = &$orig;
+$ref += 5;
+echo "Reference (&): orig={$orig}, ref={$ref}\n";
+
+$globalCounter = 100;
+if (!function_exists('demoScope')) {
+	function demoScope() {
+		global $globalCounter;
+		static $calls = 0;
+		$calls++;
+		$globalCounter++;
+		echo "Scope: global={$globalCounter}, static calls={$calls}\n";
+	}
+}
+demoScope();
+demoScope();
+
+$temp = "defined";
+echo "isset=" . (isset($temp) ? "true" : "false") . ", empty=" . (empty($temp) ? "true" : "false") . "\n";
+unset($temp);
+echo "after unset isset=" . (isset($temp) ? "true" : "false") . "\n";
+
+if (!defined('APP_RELEASE')) {
+	define('APP_RELEASE', '1.0');
+}
+echo "const APP_RELEASE=" . APP_RELEASE . ", __LINE__=" . __LINE__ . "\n";
+
+echo "\n=== 3. Data Types, Strings, Arrays & Casting ===\n";
+$intVal = 42;
+$floatVal = 3.14;
+$boolVal = true;
+$nullVal = null;
+
+$single = 'Single quoted: $intVal stays literal';
+$double = "Double quoted: intVal={$intVal}, floatVal={$floatVal}";
+echo $single . "\n" . $double . "\n";
+
+$heredoc = <<<EOT
+Heredoc string with interpolation: APP_RELEASE=1.0, intVal=$intVal
+EOT;
+$nowdoc = <<<'EOT'
+Nowdoc string without interpolation: $intVal stays literal
+EOT;
+echo $heredoc . "\n" . $nowdoc . "\n";
+
+$fruits = ['apple', 'banana'];
+$fruits[] = 'cherry';
+$assoc = array('host' => 'localhost', 'port' => 3000);
+list($firstFruit, $secondFruit) = $fruits;
+echo "Arrays & list(): {$firstFruit}, {$secondFruit}; port={$assoc['port']}\n";
+
+echo "Casts: (int)'42px'=" . (int)'42px' . ", (float)'3.5'=" . (float)'3.5' . ", (string)99=" . (string)99 . "\n";
+
+echo "\n=== 4. Operators & Expressions ===\n";
+$a = 12;
+$b = 5;
+echo "Arithmetic: +=" . ($a + $b) . ", -=" . ($a - $b) . ", *=" . ($a * $b) . ", %=" . ($a % $b) . "\n";
+echo "Bitwise: &=" . ($a & $b) . ", |=" . ($a | $b) . ", ^=" . ($a ^ $b) . ", <<=" . ($b << 1) . "\n";
+echo "Comparison: 5=='5' is " . ((5 == '5') ? 'true' : 'false') . ", 5==='5' is " . ((5 === '5') ? 'true' : 'false') . "\n";
+echo "Logical && / || / !: " . ((true && !false) ? 'true' : 'false') . ", " . ((false || true) ? 'true' : 'false') . "\n";
+echo "Ternary & Null Coalesce: " . ($nullVal ?? 'fallback') . ", " . ($boolVal ? 'yes' : 'no') . "\n";
+$safe = @$undefinedVar;
+echo "Suppressed (@) undefined var is null: " . ($safe === null ? 'true' : 'false') . "\n";
+
+echo "\n=== 5. Control Flow & Error Handling ===\n";
+$score = 85;
+if ($score >= 90) {
+	echo "Grade: A\n";
+} elseif ($score >= 80) {
+	echo "Grade: B\n";
+} else {
+	echo "Grade: C\n";
+}
+
+switch ($score) {
+	case 100:
+		echo "Perfect!\n";
+		break;
+	default:
+		echo "Switch default matched score={$score}\n";
+}
+
+$sum = 0;
+for ($i = 1; $i <= 5; $i++) {
+	if ($i === 3) {
+		continue;
+	}
+	$sum += $i;
+}
+$w = 0;
+while ($w < 2) {
+	$w++;
+}
+do {
+	$w++;
+} while ($w < 3);
+
+$items = ['x' => 10, 'y' => 20];
+foreach ($items as $k => &$v) {
+	$v *= 2;
+}
+unset($v);
+echo "Loops: for sum(skip 3)={$sum}, while/do={$w}, foreach ref y={$items['y']}\n";
+
+goto afterGoto;
+echo "This line is skipped by goto\n";
+afterGoto:
+echo "Jumped cleanly with goto!\n";
+
+try {
+	throw new Exception("Demo exception");
+} catch (Exception $e) {
+	echo "Caught exception: " . $e->getMessage() . "\n";
+} finally {
+	echo "Finally block executed\n";
+}
+
+echo "\n=== 6. Functions & Closures ===\n";
+if (!function_exists('addWithRef')) {
+	function addWithRef(&$target, $default = 1) {
+		$target += $default;
+		$args = func_get_args();
+		for ($i = 2; $i < count($args); $i++) {
+			$target += $args[$i];
+		}
+		return $target;
+	}
+}
+$total = 5;
+addWithRef($total, 2, 3, 4);
+echo "addWithRef total={$total}\n";
+
+$factor = 3;
+$multiplier = function ($n) use ($factor) {
+	return $n * $factor;
+};
+echo "Closure call: " . $multiplier(7) . "\n";
+
+echo "\n=== 7. Classes, Interfaces & OOP ===\n";
+if (!class_exists('ShellDevice')) {
+	interface Printable {
+		public function describe();
+	}
+
+	abstract class BaseDevice implements Printable {
+		const KIND = 'Terminal';
+		public $name;
+		public static $count = 0;
+
+		public function __construct($name) {
+			$this->name = $name;
+			self::$count++;
+		}
+
+		abstract public function status();
+	}
+
+	class ShellDevice extends BaseDevice {
+		public function status() {
+			return "ready";
+		}
+
+		final public function describe() {
+			return static::KIND . ":" . $this->name . " (" . $this->status() . ")";
+		}
+	}
+}
+
+$dev1 = new ShellDevice("WebCLI");
+$dev2 = clone $dev1;
+echo "OOP: " . $dev2->describe() . ", instanceof Printable=" . (($dev2 instanceof Printable) ? 'true' : 'false') . ", count=" . BaseDevice::$count . "\n";
+
+echo "\n=== 8. BASIC-Style String Functions & sprintf() ===\n";
+$sample = "  Hello PHPWebCLI  ";
+echo "len('hello')=" . len('hello') . "\n";
+echo "left('hello', 2)=" . left('hello', 2) . ", right('hello', 2)=" . right('hello', 2) . "\n";
+echo "mid('abcdef', 2, 3)=" . mid('abcdef', 2, 3) . ", instr('banana', 'na')=" . instr('banana', 'na') . "\n";
+echo "lower('AbC')=" . lower('AbC') . ", upper('AbC')=" . upper('AbC') . "\n";
+echo "chr(65)=" . chr(65) . ", val('  42.5abc')=" . val('  42.5abc') . "\n";
+echo "ltrim='" . ltrim($sample) . "', rtrim='" . rtrim($sample) . "'\n";
+echo "strcmp('10', '2')=" . strcmp('10', '2') . ", stricmp('PHP', 'php')=" . stricmp('PHP', 'php') . "\n";
+echo "space: '[" . space(4) . "]'\n";
+echo sprintf("sprintf: %s #%03d -> %.2f (hex=%X, char=%c)\n", "Item", 7, 12.345, 255, 65);
+
+echo "\n=== 9. Oracle-Style Date & Number Functions ===\n";
+echo "sysdate()=" . sysdate() . "\n";
+echo "sysdate('DD-MON-YYYY')=" . sysdate('DD-MON-YYYY') . "\n";
+$parsedDate = to_date('21-NOV-2026 02:30:00 PM', 'DD-MON-YYYY HH12:MI:SS PM');
+echo "to_date=" . $parsedDate . "\n";
+echo "to_char(date)=" . to_char($parsedDate, 'Day, Month DD YYYY HH24:MI') . "\n";
+echo "to_char(number)=" . to_char(12345.6, '$99,999.99') . "\n";
+
+echo "\n=== 10. Background Crontab Scheduler (cron) ===\n";
+cron(10, "* * * * *", "echo 'cron job 10 tick\n';");
+$jobs = cron();
+echo "Registered cron job 10 schedule: " . $jobs['10']['schedule'] . "\n";
+cron(10, "*/5 * * * *", "echo 'updated job 10\n';");
+$jobs = cron();
+echo "Updated cron job 10 schedule: " . $jobs['10']['schedule'] . "\n";
+cron(10);
+echo "Deleted cron job 10, remaining jobs: " . count(cron()) . "\n";
+
+echo "\n=== 11. Browser Runtime & Interactive I/O Bridge ===\n";
+$metaEngine = is_array($meta) ? $meta['engine'] : $meta->engine;
+$metaEnv = is_array($meta) ? $meta['environment'] : $meta->environment;
+echo "Engine=" . $metaEngine . ", Env=" . $metaEnv . ", Bridge v" . $bridge->version . "\n";
+// Interactive CLI helpers available at runtime:
+//   $name = myinput("Your name: ");
+//   $secret = myinput("Secret: ", true);
+//   $io->readline("Prompt: ", function($line) use ($term) { $term->echo($line); }, false);
+//   $jQuery("body")->css("background", "#111");
+
+echo "\n=== 12. Built-in Test Suites ===\n";
+unit_test();
+dates_unit_test();
+cron_unit_test();
+
+echo "\nDone! Try running individual snippets right at the php > prompt.\n";
