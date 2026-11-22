@@ -238,14 +238,60 @@ echo "Engine=" . $metaEngine . ", Env=" . $metaEnv . ", Bridge v" . $bridge->ver
 //   $io->readline("Prompt: ", function($line) use ($term) { $term->echo($line); }, false);
 //   $jQuery("body")->css("background", "#111");
 
-echo "\n=== 12. Introspection: get_defined_functions() ===\n";
+echo "\n=== 12. localStorage Virtual Filesystem ===\n";
+mkdir('/tmp/demo_dir', 0777, true);
+file_put_contents('/tmp/demo_dir/notes.txt', "Line 1\n");
+file_put_contents('/tmp/demo_dir/notes.txt', "Line 2\n", FILE_APPEND);
+$fh = fopen('/tmp/demo_dir/notes.txt', 'r');
+echo "Read via fgets: " . rtrim(fgets($fh)) . " | " . rtrim(fgets($fh)) . "\n";
+fclose($fh);
+echo "Directory listing: " . implode(', ', scandir('/tmp/demo_dir')) . "\n";
+unlink('/tmp/demo_dir/notes.txt');
+rmdir('/tmp/demo_dir');
+
+echo "\n=== 13. Standard Math Functions & Constants ===\n";
+echo "M_PI=" . round(M_PI, 5) . ", sqrt(144)=" . sqrt(144) . ", pow(2, 8)=" . pow(2, 8) . "\n";
+echo "abs(-9.5)=" . abs(-9.5) . ", floor(3.8)=" . floor(3.8) . ", ceil(3.2)=" . ceil(3.2) . "\n";
+echo "min(4, 1, 9)=" . min(4, 1, 9) . ", max(4, 1, 9)=" . max(4, 1, 9) . ", hypot(3, 4)=" . hypot(3, 4) . "\n";
+echo "sin(deg2rad(30))=" . round(sin(deg2rad(30)), 4) . ", log(64, 2)=" . log(64, 2) . "\n";
+echo "decbin(42)=" . decbin(42) . ", base_convert('ff', 16, 2)=" . base_convert('ff', 16, 2) . "\n";
+
+echo "\n=== 14. Standard Array Functions ===\n";
+$nums = range(1, 5);
+echo "range(1, 5) sum=" . array_sum($nums) . ", product=" . array_product($nums) . "\n";
+echo "array_slice=" . implode(',', array_slice($nums, 1, 3)) . ", reversed=" . implode(',', array_reverse($nums)) . "\n";
+$pairs = array_combine(['a', 'b', 'c'], [30, 10, 20]);
+ksort($pairs);
+echo "ksort keys=" . implode(',', array_keys($pairs)) . ", first=" . array_key_first($pairs) . ", last=" . array_key_last($pairs) . "\n";
+$users = [['id' => 1, 'name' => 'Ada'], ['id' => 2, 'name' => 'Linus']];
+echo "array_column=" . implode(',', array_column($users, 'name')) . "\n";
+
+echo "\n=== 15. Simulated SQLite3 / PDO Database (Zero-WASM) ===\n";
+$memDb = new SQLite3(':memory:');
+$memDb->exec('CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, qty INT)');
+$memDb->exec("INSERT INTO items (name, qty) VALUES ('Keyboard', 3), ('Mouse', 7)");
+$itemRow = $memDb->querySingle("SELECT name, qty FROM items WHERE qty > 5", true);
+echo "SQLite3 query: " . $itemRow['name'] . " x" . $itemRow['qty'] . "\n";
+$memDb->close();
+
+$pdoMem = new PDO('sqlite::memory:');
+$pdoMem->exec('CREATE TABLE logs (id INTEGER PRIMARY KEY AUTOINCREMENT, msg TEXT)');
+$insStmt = $pdoMem->prepare('INSERT INTO logs (msg) VALUES (?)');
+$insStmt->execute(['boot ok']);
+echo "PDO count: " . $pdoMem->query('SELECT COUNT(*) FROM logs')->fetchColumn() . "\n";
+
+echo "\n=== 16. Introspection: get_defined_functions() ===\n";
 $definedFns = get_defined_functions();
 echo "Internal functions: " . count($definedFns['internal']) . ", User functions: " . count($definedFns['user']) . "\n";
 echo "User functions: " . implode(', ', $definedFns['user']) . "\n";
 
-echo "\n=== 13. Built-in Test Suites ===\n";
+echo "\n=== 17. Built-in Test Suites ===\n";
 unit_test();
 dates_unit_test();
 cron_unit_test();
+files_unit_test();
+math_unit_test();
+arrays_unit_test();
+sqlite_unit_test();
 
 echo "\nDone! Try running individual snippets right at the php > prompt.\n";
