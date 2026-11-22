@@ -187,6 +187,41 @@
 					return hasFormat ? this._formatOracleDate(dateObj, fmt) : this._toIsoDateTime(dateObj);
 				},
 
+				// Convert date string to Unix-like seconds timestamp
+				dateToNumber: function(str, format) {
+					const iso = this.toDate(str, format);
+					const m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(iso);
+					if (!m) {
+						throw new Error('ORA-01861: literal does not match format string');
+					}
+					const d = new Date(
+						parseInt(m[1], 10),
+						parseInt(m[2], 10) - 1,
+						parseInt(m[3], 10),
+						parseInt(m[4], 10),
+						parseInt(m[5], 10),
+						parseInt(m[6], 10)
+					);
+					return Math.floor(d.getTime() / 1000);
+				},
+
+				// Inverse of dateToNumber: convert Unix-like seconds timestamp to 'YYYY-MM-DD HH:MM:SS' (or formatted string)
+				numberToDate: function(num, format) {
+					if (num === null || num === undefined || num === '' || typeof num === 'boolean') {
+						throw new Error('Invalid numeric timestamp');
+					}
+					const ts = Number(num);
+					if (!Number.isFinite(ts)) {
+						throw new Error('Invalid numeric timestamp');
+					}
+					const d = new Date(Math.trunc(ts) * 1000);
+					if (Number.isNaN(d.getTime())) {
+						throw new Error('Numeric timestamp out of range');
+					}
+					const hasFormat = format !== undefined && format !== null && String(format) !== '';
+					return hasFormat ? this._formatOracleDate(d, String(format)) : this._toIsoDateTime(d);
+				},
+
 				_toIsoDateTime: function(d) {
 					const pad = function(n) { return String(n).padStart(2, '0'); };
 					return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
@@ -799,6 +834,43 @@
 						return padValue(sign + body, width, padChar, leftAlign);
 					}
 				);
+			});
+
+			// Snapshot built-in functions before loading user PHP libraries, then expose get_defined_functions()
+			const internalFunctionNames = new Set(
+				Object.keys(php.environment.getState().getGlobalNamespace().functions)
+			);
+			internalFunctionNames.add('get_defined_functions');
+
+			php.environment.defineCoercingFunction('get_defined_functions', function() {
+				const rootNs = php.environment.getState().getGlobalNamespace();
+				const internal = [];
+				const user = [];
+
+				function collectFunctions(nsNode, prefix) {
+					const fns = nsNode.functions || {};
+					Object.keys(fns).forEach(function(name) {
+						const fullName = prefix ? prefix + '\\' + name : name;
+						if (!prefix && internalFunctionNames.has(name)) {
+							internal.push(fullName);
+						} else {
+							user.push(fullName);
+						}
+					});
+					const children = nsNode.children || {};
+					Object.keys(children).forEach(function(childName) {
+						const nextPrefix = prefix ? prefix + '\\' + childName : childName;
+						collectFunctions(children[childName], nextPrefix);
+					});
+				}
+
+				collectFunctions(rootNs, '');
+				internal.sort();
+				user.sort();
+				return {
+					internal: internal,
+					user: user
+				};
 			});
 
 			// Expose the bridge object as $bridge in PHP

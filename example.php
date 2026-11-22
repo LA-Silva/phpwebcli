@@ -211,6 +211,10 @@ $parsedDate = to_date('21-NOV-2026 02:30:00 PM', 'DD-MON-YYYY HH12:MI:SS PM');
 echo "to_date=" . $parsedDate . "\n";
 echo "to_char(date)=" . to_char($parsedDate, 'Day, Month DD YYYY HH24:MI') . "\n";
 echo "to_char(number)=" . to_char(12345.6, '$99,999.99') . "\n";
+$tsNum = date_to_number('2026-11-22 12:00:06');
+echo "date_to_number('2026-11-22 12:00:06')=" . $tsNum . "\n";
+echo "number_to_date(" . $tsNum . ")=" . number_to_date($tsNum) . "\n";
+echo "number_to_date(1234123)=" . number_to_date(1234123) . "\n";
 
 echo "\n=== 10. Background Crontab Scheduler (cron) ===\n";
 cron(10, "* * * * *", "echo 'cron job 10 tick\n';");
@@ -232,7 +236,12 @@ echo "Engine=" . $metaEngine . ", Env=" . $metaEnv . ", Bridge v" . $bridge->ver
 //   $io->readline("Prompt: ", function($line) use ($term) { $term->echo($line); }, false);
 //   $jQuery("body")->css("background", "#111");
 
-echo "\n=== 12. Built-in Test Suites ===\n";
+echo "\n=== 12. Introspection: get_defined_functions() ===\n";
+$definedFns = get_defined_functions();
+echo "Internal functions: " . count($definedFns['internal']) . ", User functions: " . count($definedFns['user']) . "\n";
+echo "User functions: " . implode(', ', $definedFns['user']) . "\n";
+
+echo "\n=== 13. Built-in Test Suites ===\n";
 unit_test();
 dates_unit_test();
 cron_unit_test();
