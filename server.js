@@ -13,7 +13,10 @@ app.use(express.static(__dirname, {
   dotfiles: 'ignore'
 }));
 
-app.get('*', (_req, res) => {
+app.get('*', (req, res) => {
+  if (path.extname(req.path)) {
+    return res.status(404).type('text/plain').send('File not found: ' + req.path);
+  }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 

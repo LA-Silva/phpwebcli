@@ -21,43 +21,50 @@ if (!function_exists('cls')) {
 	}
 }
 
-if (!function_exists('screen_unit_test')) {
-	function screen_unit_test($verbose = false) {
-		global $term;
-
-		$cols = screen_columns();
-		$lines = screen_lines();
-		$termCols = (int) $term->cols();
-		$termLines = (int) $term->rows();
-
-		$cases = [
-			['screen_columns() returns positive int', is_int($cols) && $cols > 0, true],
-			['screen_lines() returns positive int', is_int($lines) && $lines > 0, true],
-			['screen_columns() matches $term->cols()', $cols, $termCols],
-			['screen_lines() matches $term->rows()', $lines, $termLines],
-			['cls() function is defined', function_exists('cls'), true],
-		];
-
-		$passed = 0;
-		$failed = 0;
-
-		foreach ($cases as $case) {
-			$label = $case[0];
-			$actual = $case[1];
-			$expected = $case[2];
-
-			if ($actual === $expected) {
-				$passed++;
-				if ($verbose) {
-					echo "[PASS] " . $label . "\n";
-				}
-			} else {
-				$failed++;
-				echo "[FAIL] " . $label . " => got " . var_export($actual, true) . ", expected " . var_export($expected, true) . "\n";
-			}
+if (!function_exists('screen_mode')) {
+	function screen_mode($enabled = null) {
+		global $bridge;
+		if ($enabled === null) {
+			return (bool) $bridge->screenMode(null);
 		}
-
-		echo "screen.php unit_test: " . $passed . "/" . count($cases) . " passed\n";
-		return $failed === 0;
+		return (bool) $bridge->screenMode((bool) $enabled);
 	}
 }
+
+if (!function_exists('locate')) {
+	function locate($row, $col = 1) {
+		global $bridge;
+		return (bool) $bridge->screenLocate((int) $row, (int) $col);
+	}
+}
+
+if (!function_exists('gotoxy')) {
+	function gotoxy($x, $y) {
+		global $bridge;
+		return (bool) $bridge->screenLocate((int) $y, (int) $x);
+	}
+}
+
+if (!function_exists('cursor_row')) {
+	function cursor_row() {
+		global $bridge;
+		$pos = $bridge->screenCursor();
+		return (int) $pos['row'];
+	}
+}
+
+if (!function_exists('cursor_col')) {
+	function cursor_col() {
+		global $bridge;
+		$pos = $bridge->screenCursor();
+		return (int) $pos['col'];
+	}
+}
+
+if (!function_exists('screen_line')) {
+	function screen_line($row) {
+		global $bridge;
+		return (string) $bridge->screenLine((int) $row);
+	}
+}
+

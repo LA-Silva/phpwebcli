@@ -280,9 +280,15 @@ $insStmt = $pdoMem->prepare('INSERT INTO logs (msg) VALUES (?)');
 $insStmt->execute(['boot ok']);
 echo "PDO count: " . $pdoMem->query('SELECT COUNT(*) FROM logs')->fetchColumn() . "\n";
 
-echo "\n=== 16. Screen Dimensions (Characters) ===\n";
+echo "\n=== 16. Screen Dimensions & 2D Cursor Positioning ===\n";
 echo "Screen size: " . screen_columns() . " columns x " . screen_lines() . " lines\n";
-// cls(); // clears the terminal screen (BASIC-style)
+// Interactive 2D screen mode helpers:
+//   screen_mode(true);          // switch to full-screen 2D character grid
+//   cls();                      // clear screen / reset cursor to (1,1)
+//   locate(5, 10); echo "Hi!";  // BASIC-style (row, col)
+//   gotoxy(10, 6); echo "OK";   // X/Y-style (col, row)
+//   screen_mode(false);         // return to REPL (or press ESC)
+//   $includePhp('screen_demo.php'); // full interactive screen demo
 
 echo "\n=== 17. Introspection: get_defined_functions() ===\n";
 $definedFns = get_defined_functions();
@@ -290,13 +296,13 @@ echo "Internal functions: " . count($definedFns['internal']) . ", User functions
 echo "User functions: " . implode(', ', $definedFns['user']) . "\n";
 
 echo "\n=== 18. Built-in Test Suites ===\n";
-unit_test();
-dates_unit_test();
-cron_unit_test();
-files_unit_test();
-math_unit_test();
-arrays_unit_test();
-sqlite_unit_test();
-screen_unit_test();
+include 'unit_test_string.php';
+include 'unit_test_date.php';
+include 'unit_test_cron.php';
+include 'unit_test_file.php';
+include 'unit_test_math.php';
+include 'unit_test_array.php';
+include 'unit_test_sqlite.php';
+include 'unit_test_screen.php';
 
 echo "\nDone! Try running individual snippets right at the php > prompt.\n";

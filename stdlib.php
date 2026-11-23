@@ -42,14 +42,16 @@ function myinput($arg1, $secret = false) {
 }
 
 
-unit_test(true);
-dates_unit_test(true);
-cron_unit_test(true);
-files_unit_test(true);
-math_unit_test(true);
-arrays_unit_test(true);
-sqlite_unit_test(true);
-screen_unit_test(true);
+$unit_test_verbose = true;
+include 'unit_test_string.php';
+include 'unit_test_date.php';
+include 'unit_test_cron.php';
+include 'unit_test_file.php';
+include 'unit_test_math.php';
+include 'unit_test_array.php';
+include 'unit_test_sqlite.php';
+include 'unit_test_screen.php';
+unset($unit_test_verbose);
 
 $loginname = myinput("Login:");
 echo "hello " . $loginname . "\n";

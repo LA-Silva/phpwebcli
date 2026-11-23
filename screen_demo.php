@@ -1,0 +1,75 @@
+<?php
+/**
+ * screen_demo.php — Interactive showcase of all 2D screen framebuffer functions.
+ *
+ * Run from the browser PHP CLI (php > prompt):
+ *   $includePhp('screen_demo.php');
+ *
+ * Press ESC (or click "ESC: Exit Screen", or run screen_mode(false);)
+ * to return from the 2D screen back to the php > prompt.
+ */
+
+if (!function_exists('screen_demo')) {
+	function screen_demo() {
+		// 1. Read terminal character dimensions
+		$cols = screen_columns();
+		$lines = screen_lines();
+
+		// 2. Activate 2D character framebuffer & clear it
+		screen_mode(true);
+		cls();
+
+		// 3. Draw top/bottom horizontal rules using locate($row, $col)
+		$rule = '';
+		for ($i = 0; $i < $cols; $i++) {
+			$rule .= ($i === 0 || $i === $cols - 1) ? '+' : '-';
+		}
+		locate(1, 1);
+		echo $rule;
+		locate($lines, 1);
+		echo $rule;
+
+		// Draw left/right vertical borders
+		for ($r = 2; $r < $lines; $r++) {
+			locate($r, 1);
+			echo '|';
+			locate($r, $cols);
+			echo '|';
+		}
+
+		// 4. Centered header via locate()
+		$title = " PHPWebCLI 2D Screen Demo (" . $cols . "x" . $lines . ") ";
+		$titleCol = (int) (($cols - strlen($title)) / 2) + 1;
+		if ($titleCol < 3) {
+			$titleCol = 3;
+		}
+		locate(2, $titleCol);
+		echo $title;
+
+		// 5. Inspect live cursor position with cursor_row() & cursor_col()
+		$afterTitleRow = cursor_row();
+		$afterTitleCol = cursor_col();
+
+		// 6. Position using X/Y coordinates via gotoxy($x, $y)
+		$rowGo = $lines >= 8 ? 4 : 3;
+		gotoxy(4, $rowGo);
+		echo "gotoxy(4, " . $rowGo . "): cursor after title was (" . $afterTitleRow . ", " . $afterTitleCol . ")";
+
+		// 7. Position using ANSI CSI escape sequence ESC[row;colH
+		$rowAnsi = $lines >= 10 ? 6 : min($lines - 1, $rowGo + 1);
+		echo "\x1b[" . $rowAnsi . ";4HANSI ESC[" . $rowAnsi . ";4H positioned text";
+
+		// 8. Read back rendered line from the framebuffer with screen_line()
+		$captured = trim(screen_line($rowGo));
+		$rowRead = $lines >= 12 ? 8 : min($lines - 1, $rowAnsi + 1);
+		locate($rowRead, 4);
+		echo "screen_line(" . $rowGo . "): " . substr($captured, 0, max(10, $cols - 26));
+
+		// 9. Footer status using screen_mode()
+		$footerRow = max(2, $lines - 1);
+		locate($footerRow, 4);
+		echo "screen_mode()=" . (screen_mode() ? 'true' : 'false') . " | Press ESC or run screen_mode(false); to exit";
+	}
+}
+
+screen_demo();

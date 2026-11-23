@@ -1,0 +1,71 @@
+<?php
+return call_user_func(function($verbose) {
+	global $term;
+
+	$cols = screen_columns();
+	$lines = screen_lines();
+	$termCols = (int) $term->cols();
+	$termLines = (int) $term->rows();
+
+	$prevMode = screen_mode();
+	screen_mode(true);
+	cls();
+
+	$modeAfterEnable = screen_mode();
+	locate(3, 5);
+	echo "HI";
+	$row3AfterLocate = substr(screen_line(3), 4, 2);
+	$curAfterLocateRow = cursor_row();
+	$curAfterLocateCol = cursor_col();
+
+	gotoxy(10, 4);
+	echo "XY";
+	$row4AfterGotoxy = substr(screen_line(4), 9, 2);
+
+	// Test ANSI cursor move inside active screen mode
+	echo "\x1b[2;4HOK";
+	$row2AfterAnsi = substr(screen_line(2), 3, 2);
+
+	cls();
+	$row3AfterCls = trim(screen_line(3));
+	$curAfterClsRow = cursor_row();
+	$curAfterClsCol = cursor_col();
+
+	screen_mode($prevMode);
+	$modeRestored = screen_mode();
+
+	$cases = [
+		['screen_columns() returns positive int', is_int($cols) && $cols > 0, true],
+		['screen_lines() returns positive int', is_int($lines) && $lines > 0, true],
+		['screen_columns() matches $term->cols()', $cols, $termCols],
+		['screen_lines() matches $term->rows()', $lines, $termLines],
+		['screen_mode(true) activates framebuffer', $modeAfterEnable, true],
+		['locate(3, 5) + echo writes at row 3 col 5 and advances cursor', $row3AfterLocate === 'HI' && $curAfterLocateRow === 3 && $curAfterLocateCol === 7, true],
+		['gotoxy(10, 4) + echo writes at row 4 col 10', $row4AfterGotoxy, 'XY'],
+		['ANSI CSI ESC[2;4H moves cursor and echo writes OK', $row2AfterAnsi, 'OK'],
+		['cls() clears screen buffer and resets cursor to (1,1)', $row3AfterCls === '' && $curAfterClsRow === 1 && $curAfterClsCol === 1, true],
+		['screen_mode(false) restores REPL mode', $modeRestored, $prevMode],
+	];
+
+	$passed = 0;
+	$failed = 0;
+
+	foreach ($cases as $case) {
+		$label = $case[0];
+		$actual = $case[1];
+		$expected = $case[2];
+
+		if ($actual === $expected) {
+			$passed++;
+			if ($verbose) {
+				echo "[PASS] " . $label . "\n";
+			}
+		} else {
+			$failed++;
+			echo "[FAIL] " . $label . " => got " . var_export($actual, true) . ", expected " . var_export($expected, true) . "\n";
+		}
+	}
+
+	echo "unit_test_screen.php: " . $passed . "/" . count($cases) . " passed\n";
+	return $failed === 0;
+}, isset($unit_test_verbose) && $unit_test_verbose);

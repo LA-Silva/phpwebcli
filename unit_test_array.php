@@ -1,0 +1,90 @@
+<?php
+return call_user_func(function($verbose) {
+	$sArr = ['b' => 2, 'a' => 1, 'c' => 3];
+	ksort($sArr);
+	$ksortOk = array_keys($sArr) === ['a', 'b', 'c'];
+
+	$rArr = [3, 1, 2];
+	sort($rArr);
+	$sortOk = $rArr === [1, 2, 3];
+	rsort($rArr);
+	$rsortOk = $rArr === [3, 2, 1];
+
+	$arArr = ['x' => 10, 'y' => 30, 'z' => 20];
+	arsort($arArr);
+	$arsortOk = array_keys($arArr) === ['y', 'z', 'x'];
+
+	$uArr = ['pear', 'fig', 'apple'];
+	usort($uArr, function($a, $b) {
+		return strlen($a) - strlen($b);
+	});
+
+	$uaArr = ['first' => 'banana', 'second' => 'fig'];
+	uasort($uaArr, function($a, $b) {
+		return strlen($a) - strlen($b);
+	});
+
+	$ukArr = ['bbb' => 1, 'a' => 2, 'cc' => 3];
+	uksort($ukArr, function($a, $b) {
+		return strlen($a) - strlen($b);
+	});
+
+	$sp = ['a', 'b', 'c', 'd'];
+	$removed = array_splice($sp, 1, 2, ['x', 'y', 'z']);
+
+	$un = ['c', 'd'];
+	$unLen = array_unshift($un, 'a', 'b');
+
+	srand(99);
+	$shuf = [1, 2, 3, 4, 5];
+	shuffle($shuf);
+	$randSingle = array_rand(['p' => 10, 'q' => 20, 'r' => 30]);
+	$randMulti = array_rand(['p' => 10, 'q' => 20, 'r' => 30], 2);
+
+	$rows = [
+		['id' => 10, 'name' => 'Alice'],
+		['id' => 20, 'name' => 'Bob'],
+	];
+
+	$cases = [
+		['range ints, descending, and chars', range(1, 5) === [1, 2, 3, 4, 5] && range(5, 1, 2) === [5, 3, 1] && range('a', 'd') === ['a', 'b', 'c', 'd'], true],
+		['array_fill & array_fill_keys', array_fill(2, 3, 'x') === [2 => 'x', 3 => 'x', 4 => 'x'] && array_fill_keys(['a', 'b'], 0) === ['a' => 0, 'b' => 0], true],
+		['array_combine', array_combine(['x', 'y'], [10, 20]), ['x' => 10, 'y' => 20]],
+		['array_slice positive/negative', array_slice(['a', 'b', 'c', 'd', 'e'], 1, 3) === ['b', 'c', 'd'] && array_slice(['a', 'b', 'c', 'd'], -2) === ['c', 'd'], true],
+		['array_splice', $removed === ['b', 'c'] && $sp === ['a', 'x', 'y', 'z', 'd'], true],
+		['array_chunk & array_pad', array_chunk([1, 2, 3, 4, 5], 2) === [[1, 2], [3, 4], [5]] && array_pad([1, 2], -4, 0) === [0, 0, 1, 2], true],
+		['array_column indexed', array_column($rows, 'name', 'id'), [10 => 'Alice', 20 => 'Bob']],
+		['array_unshift', $unLen === 4 && $un === ['a', 'b', 'c', 'd'], true],
+		['array_replace & array_replace_recursive', array_replace(['a' => 1, 'b' => 2], ['b' => 9]) === ['a' => 1, 'b' => 9] && array_replace_recursive(['x' => ['a' => 1, 'b' => 2]], ['x' => ['b' => 8]]) === ['x' => ['a' => 1, 'b' => 8]], true],
+		['array_reverse & array_flip & array_change_key_case', array_reverse([1, 2, 3]) === [3, 2, 1] && array_flip(['a' => 1, 'b' => 2]) === [1 => 'a', 2 => 'b'] && array_change_key_case(['Foo' => 1], CASE_UPPER) === ['FOO' => 1], true],
+		['array_sum & array_product & array_reduce', array_sum([1, 2, 3, 4]) === 10 && array_product([2, 3, 4]) === 24 && array_reduce([1, 2, 3], function($acc, $x) { return $acc + $x; }, 10) === 16, true],
+		['array_count_values', array_count_values(['a', 'b', 'a', 'c', 'a']), ['a' => 3, 'b' => 1, 'c' => 1]],
+		['array_intersect & array_intersect_key & array_diff_key', array_values(array_intersect([1, 2, 3], [2, 3, 4])) === [2, 3] && array_intersect_key(['a' => 1, 'b' => 2], ['b' => 9]) === ['b' => 2] && array_diff_key(['a' => 1, 'b' => 2], ['b' => 9]) === ['a' => 1], true],
+		['array_key_first & array_key_last', array_key_first(['k1' => 1, 'k2' => 2]) === 'k1' && array_key_last(['k1' => 1, 'k2' => 2]) === 'k2', true],
+		['sort/rsort/ksort/arsort', $sortOk && $rsortOk && $ksortOk && $arsortOk, true],
+		['usort/uasort/uksort', $uArr === ['fig', 'pear', 'apple'] && array_keys($uaArr) === ['second', 'first'] && array_keys($ukArr) === ['a', 'cc', 'bbb'], true],
+		['shuffle & array_rand', count($shuf) === 5 && array_sum($shuf) === 15 && in_array($randSingle, ['p', 'q', 'r']) && count($randMulti) === 2, true],
+	];
+
+	$passed = 0;
+	$failed = 0;
+
+	foreach ($cases as $case) {
+		$label = $case[0];
+		$actual = $case[1];
+		$expected = $case[2];
+
+		if ($actual === $expected) {
+			$passed++;
+			if ($verbose) {
+				echo "[PASS] " . $label . "\n";
+			}
+		} else {
+			$failed++;
+			echo "[FAIL] " . $label . " => got " . var_export($actual, true) . ", expected " . var_export($expected, true) . "\n";
+		}
+	}
+
+	echo "unit_test_array.php: " . $passed . "/" . count($cases) . " passed\n";
+	return $failed === 0;
+}, isset($unit_test_verbose) && $unit_test_verbose);
