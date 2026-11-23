@@ -1474,7 +1474,34 @@
 				},
 				sqlLastInsertRowId: function(connId) { return miniSql.lastInsertRowId(connId); },
 				sqlChanges: function(connId) { return miniSql.changes(connId); },
-				sqlEscape: function(str) { return miniSql.escapeString(str); }
+				sqlEscape: function(str) { return miniSql.escapeString(str); },
+
+				// Terminal character dimensions
+				screenColumns: function() {
+					if (typeof term !== 'undefined' && term && typeof term.cols === 'function') {
+						const cols = Math.trunc(Number(term.cols()));
+						if (Number.isFinite(cols) && cols > 0) {
+							return cols;
+						}
+					}
+					return 80;
+				},
+				screenLines: function() {
+					if (typeof term !== 'undefined' && term && typeof term.rows === 'function') {
+						const rows = Math.trunc(Number(term.rows()));
+						if (Number.isFinite(rows) && rows > 0) {
+							return rows;
+						}
+					}
+					return 24;
+				},
+				screenClear: function() {
+					if (typeof term !== 'undefined' && term && typeof term.clear === 'function') {
+						term.clear();
+						return true;
+					}
+					return false;
+				}
 			};
 
 			// Upgrade Uniter's sprintf to support %f, %x, %X, %o, %b, %c, %u, %e, %E, %g, %G, width, precision, and positional args
@@ -2086,6 +2113,8 @@
 				return includePhp('arrays.php');
 			}).then(function() {
 				return includePhp('sqlite.php');
+			}).then(function() {
+				return includePhp('screen.php');
 			}).then(function() {
 				return includePhp('stdlib.php');
 			});

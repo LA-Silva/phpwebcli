@@ -280,12 +280,16 @@ $insStmt = $pdoMem->prepare('INSERT INTO logs (msg) VALUES (?)');
 $insStmt->execute(['boot ok']);
 echo "PDO count: " . $pdoMem->query('SELECT COUNT(*) FROM logs')->fetchColumn() . "\n";
 
-echo "\n=== 16. Introspection: get_defined_functions() ===\n";
+echo "\n=== 16. Screen Dimensions (Characters) ===\n";
+echo "Screen size: " . screen_columns() . " columns x " . screen_lines() . " lines\n";
+// cls(); // clears the terminal screen (BASIC-style)
+
+echo "\n=== 17. Introspection: get_defined_functions() ===\n";
 $definedFns = get_defined_functions();
 echo "Internal functions: " . count($definedFns['internal']) . ", User functions: " . count($definedFns['user']) . "\n";
 echo "User functions: " . implode(', ', $definedFns['user']) . "\n";
 
-echo "\n=== 17. Built-in Test Suites ===\n";
+echo "\n=== 18. Built-in Test Suites ===\n";
 unit_test();
 dates_unit_test();
 cron_unit_test();
@@ -293,5 +297,6 @@ files_unit_test();
 math_unit_test();
 arrays_unit_test();
 sqlite_unit_test();
+screen_unit_test();
 
 echo "\nDone! Try running individual snippets right at the php > prompt.\n";

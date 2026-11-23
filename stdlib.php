@@ -49,6 +49,7 @@ files_unit_test(true);
 math_unit_test(true);
 arrays_unit_test(true);
 sqlite_unit_test(true);
+screen_unit_test(true);
 
 $loginname = myinput("Login:");
 echo "hello " . $loginname . "\n";
