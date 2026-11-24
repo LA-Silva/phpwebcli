@@ -1,4 +1,4 @@
-<?php
+<?bop
 return call_user_func(function($verbose) {
 	$sArr = ['b' => 2, 'a' => 1, 'c' => 3];
 	ksort($sArr);
@@ -85,6 +85,6 @@ return call_user_func(function($verbose) {
 		}
 	}
 
-	echo "unit_test_array.php: " . $passed . "/" . count($cases) . " passed\n";
+	echo "unit_test_array.bop: " . $passed . "/" . count($cases) . " passed\n";
 	return $failed === 0;
 }, isset($unit_test_verbose) && $unit_test_verbose);

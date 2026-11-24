@@ -1,6 +1,6 @@
-# PHP Web CLI Language Reference
+# BOP (Browser-Oriented PHP) Language Reference
 
-Complete enumeration of all PHP language constructs, built-in functions, standard library extensions, database classes, screen controls, terminal/bridge helpers, constants, and standalone scripts available in this browser-hosted Uniter PHP environment.
+Complete enumeration of all **BOP** language constructs, built-in functions, standard library extensions, database classes, screen controls, terminal/bridge helpers, constants, and standalone scripts available in this browser-hosted BOP runtime.
 
 ---
 
@@ -26,33 +26,35 @@ Complete enumeration of all PHP language constructs, built-in functions, standar
 
 ## 1. Core Language Constructs & Include Statements
 
-Standard PHP syntax supported by the Uniter engine in the `php >` REPL.
+Standard BOP syntax supported in the `bop >` REPL and `.bop` script files.
 
 | Construct | Description | Example |
 |---|---|---|
+| `<?bop ... ?>` | Opens (and optionally closes) a BOP code block in `.bop` files or REPL snippets. | `<?bop echo "Hello BOP!\n"; ?>` |
+| `<?= $expr ?>` | Short echo tag for outputting a single expression. | `<?= "Hi " . $name ?>` |
 | `echo $expr` | Outputs one or more strings or values to the terminal or active screen buffer. | `echo "Hello, world!\n";` |
 | `print $expr` | Outputs a single string or value and returns `1`. | `print "Done\n";` |
-| `include 'file.php'` | Loads and executes a PHP file from VFS or server; emits a warning if missing and continues. | `include 'screen_demo.php';` |
-| `include_once 'file.php'` | Same as `include`, but loads the file only once per session. | `include_once 'unit_test_math.php';` |
-| `require 'file.php'` | Loads and executes a PHP file; throws a fatal error if missing. | `require 'strings.php';` |
-| `require_once 'file.php'` | Same as `require`, but loads the file only once per session. | `require_once 'dates.php';` |
+| `include 'file.bop'` | Loads and executes a BOP file from VFS or server; emits a warning if missing and continues. | `include 'screen_demo.bop';` |
+| `include_once 'file.bop'` | Same as `include`, but loads the file only once per session. | `include_once 'unit_test_math.bop';` |
+| `require 'file.bop'` | Loads and executes a BOP file; throws a fatal error if missing. | `require 'strings.bop';` |
+| `require_once 'file.bop'` | Same as `require`, but loads the file only once per session. | `require_once 'dates.bop';` |
 | `isset($var)` | Returns `true` if a variable or array key exists and is not `null`. | `if (isset($name)) echo $name;` |
 | `empty($var)` | Returns `true` if a variable does not exist or evaluates to false/empty (`""`, `0`, `[]`, `null`). | `if (empty($items)) echo "None";` |
 | `unset($var)` | Destroys a variable or removes an array element. | `unset($temp);` |
 | `list($a, $b) = $arr` | Unpacks indexed array elements into variables in one statement. | `list($x, $y) = [10, 20];` |
 | `die($msg)` / `exit($code)` | Terminates current script execution immediately. | `if (!$ok) die("Stopped\n");` |
-| `return $val` | Returns a value from a function, closure, or included PHP file. | `return $total * 1.1;` |
+| `return $val` | Returns a value from a function, closure, or included BOP file. | `return $total * 1.1;` |
 | `function name($args) {}` | Defines a named or anonymous function (closures with `use (...)` are supported). | `$fn = function($x) { return $x * 2; };` |
 | `class Name {}` | Defines classes with properties, constants, inheritance (`extends`), visibility, and magic methods. | `class Box { public $v = 1; }` |
 | `try {} catch (Exception $e) {} finally {}` | Structured exception handling. | `try { throw new Exception("Oops"); } catch (Exception $e) { echo $e->getMessage(); }` |
 
-> **Uniter Notes:** `var_dump()` accepts one argument per call, `xor` is not supported, `...$args` variadic syntax is unsupported (use `func_get_args()`), and method default parameters cannot reference class constants directly.
+> **Runtime Notes:** `var_dump()` accepts one argument per call, `xor` is not supported, `...$args` variadic syntax is unsupported (use `func_get_args()`), and method default parameters cannot reference class constants directly.
 
 ---
 
 ## 2. Strings & Text Formatting
 
-Includes Uniter built-ins, `php_bridge.js` upgrades (`sprintf`), and BASIC/Perl-style helpers in `strings.php`.
+Includes core built-ins, `bop_bridge.js` upgrades (`sprintf`), and BASIC/Perl-style helpers in `strings.bop`.
 
 ### Length, Substrings & Trimming
 
@@ -100,20 +102,20 @@ Includes Uniter built-ins, `php_bridge.js` upgrades (`sprintf`), and BASIC/Perl-
 | `implode($glue, $pieces)` | Joins array elements into a string using `$glue`. | `echo implode("-", ["a", "b"]); // "a-b"` |
 | `join($glue, $pieces)` | Alias for `implode()`. | `echo join(",", [1, 2, 3]); // "1,2,3"` |
 | `split($pattern, $str = null, $limit = 0)` | Perl-style split supporting 1-arg whitespace mode, fixed delimiter, or delimited regex `/.../`. | `$words = split("  foo   bar ");` |
-| `str_replace($search, $replace, $subj)` | Replaces all occurrences of `$search` (string or array) with `$replace`. | `echo str_replace("world", "PHP", "hello world");` |
+| `str_replace($search, $replace, $subj)` | Replaces all occurrences of `$search` (string or array) with `$replace`. | `echo str_replace("world", "BOP", "hello world");` |
 | `strtr($str, $from, $to = null)` | Translates characters or replaces pairs from an associative array. | `echo strtr("aba", "ab", "xy"); // "xyx"` |
 | `preg_quote($str, $delim = null)` | Escapes regular expression special characters. | `echo preg_quote("a+b?", "/"); // "a\+b\?"` |
 | `sprintf($format, ...$args)` | Formats values using `%s`, `%d`, `%i`, `%u`, `%f`, `%F`, `%e`, `%E`, `%g`, `%G`, `%x`, `%X`, `%o`, `%b`, `%c`, padding, precision, and positional `%1$s`. | `echo sprintf("%s-%04d-%.2f", "ID", 7, 3.1415);` |
 | `htmlspecialchars($str, ...)` | Converts `&`, `"`, `'`, `<`, `>` into HTML entities. | `echo htmlspecialchars("<b>hi</b>");` |
 | `htmlentities($str, ...)` | Converts all applicable characters into HTML entities. | `echo htmlentities("<a>");` |
 | `get_html_translation_table(...)` | Returns the translation table used by `htmlspecialchars`/`htmlentities`. | `$tbl = get_html_translation_table();` |
-| `hello123()` | Sample greeting function from `strings.php` returning `"123hello world"`. | `echo hello123();` |
+| `hello123()` | Sample greeting function from `strings.bop` returning `"123hello world"`. | `echo hello123();` |
 
 ---
 
 ## 3. Arrays & Sorting
 
-Combines Uniter built-ins with `arrays.php` extensions.
+Combines core built-ins with `arrays.bop` extensions.
 
 ### Creation, Inspection & Access
 
@@ -196,13 +198,13 @@ Combines Uniter built-ins with `arrays.php` extensions.
 | `shuffle(&$arr)` | Randomly shuffles array elements in place (uses `rand`/`srand` state) and re-indexes. | `shuffle($deck);` |
 | `array_rand($arr, $num = 1)` | Picks one random key (or array of `$num` random keys) from `$arr`. | `$k = array_rand(["a" => 1, "b" => 2]);` |
 
-*(Internal sorting/merge helpers `__array_cmp_values`, `__array_merge_recursive_two`, and `__array_replace_recursive_two` also live in `arrays.php`.)*
+*(Internal sorting/merge helpers `__array_cmp_values`, `__array_merge_recursive_two`, and `__array_replace_recursive_two` also live in `arrays.bop`.)*
 
 ---
 
 ## 4. Math, Trigonometry, Randomness & Base Conversion
 
-Combines Uniter core (`ceil`, `dechex`) with `math.php`.
+Combines core functions (`ceil`, `dechex`) with `math.bop`.
 
 ### Basic Arithmetic & Rounding
 
@@ -211,7 +213,7 @@ Combines Uniter core (`ceil`, `dechex`) with `math.php`.
 | `abs($num)` | Returns the absolute value of a number. | `echo abs(-42); // 42` |
 | `ceil($num)` | Rounds a number up to the nearest integer (as float). | `echo ceil(3.1); // 4` |
 | `floor($num)` | Rounds a number down to the nearest integer (as float). | `echo floor(3.9); // 3` |
-| `round($num, $prec = 0, $mode = PHP_ROUND_HALF_UP)` | Rounds a number to `$prec` decimal places (supports negative precision and `PHP_ROUND_HALF_*` modes). | `echo round(3.14159, 2); // 3.14` |
+| `round($num, $prec = 0, $mode = BOP_ROUND_HALF_UP)` | Rounds a number to `$prec` decimal places (supports negative precision and `BOP_ROUND_HALF_*` modes). | `echo round(3.14159, 2); // 3.14` |
 | `min($val, ...)` / `min($arr)` | Returns the lowest value among arguments or inside an array. | `echo min(5, 2, 9); // 2` |
 | `max($val, ...)` / `max($arr)` | Returns the highest value among arguments or inside an array. | `echo max([1, 8, 3]); // 8` |
 | `intdiv($a, $b)` | Integer division truncating toward zero. | `echo intdiv(17, 5); // 3` |
@@ -271,7 +273,7 @@ Combines Uniter core (`ceil`, `dechex`) with `math.php`.
 
 ## 5. Dates, Times & Oracle-Style Formatters
 
-Combines Uniter core time functions with Oracle-compatible date/number helpers in `dates.php`.
+Combines core time functions with Oracle-compatible date/number helpers in `dates.bop`.
 
 | Command | Description | Example |
 |---|---|---|
@@ -288,7 +290,7 @@ Combines Uniter core time functions with Oracle-compatible date/number helpers i
 
 ## 6. Files, Directories & Streams (`localStorage` VFS)
 
-Persistent browser filesystem backed by `localStorage` (`vfs.js` + `files.php` + Uniter core checks).
+Persistent browser filesystem backed by `localStorage` (`vfs.js` + `files.bop` + core checks).
 
 ### High-Level File & Path Helpers
 
@@ -347,7 +349,7 @@ Persistent browser filesystem backed by `localStorage` (`vfs.js` + `files.php` +
 
 ## 7. Screen, Terminal & Cursor Control (2D Framebuffer)
 
-Provides terminal geometry queries and an Option 2 2D character grid framebuffer overlay (`screen.php` + `screen_buffer.js`). Supports cursor positioning, `cls()`, and ANSI escape codes (`ESC[H`, `ESC[row;colH`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`). Press **ESC** or call `screen_mode(false)` to return to the normal REPL.
+Provides terminal geometry queries and an Option 2 2D character grid framebuffer overlay (`screen.bop` + `screen_buffer.js`). Supports cursor positioning, `cls()`, and ANSI escape codes (`ESC[H`, `ESC[row;colH`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`). Press **ESC** or call `screen_mode(false)` to return to the normal REPL.
 
 | Command | Description | Example |
 |---|---|---|
@@ -365,7 +367,7 @@ Provides terminal geometry queries and an Option 2 2D character grid framebuffer
 
 ## 8. SQLite3 & PDO Databases (Zero-WASM MiniSQL)
 
-In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine implemented in pure JavaScript (`minisql.js`) and exposed via PHP `SQLite3` and `PDO` classes (`sqlite.php`). Supports `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE`, `INSERT`, `SELECT` (`JOIN`, `WHERE`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`, aggregates `COUNT`/`SUM`/`AVG`/`MIN`/`MAX`), `UPDATE`, `DELETE`, `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`, and `sqlite_master`.
+In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine implemented in pure JavaScript (`minisql.js`) and exposed via BOP `SQLite3` and `PDO` classes (`sqlite.bop`). Supports `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE`, `INSERT`, `SELECT` (`JOIN`, `WHERE`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`, aggregates `COUNT`/`SUM`/`AVG`/`MIN`/`MAX`), `UPDATE`, `DELETE`, `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`, and `sqlite_master`.
 
 ### `SQLite3` Class
 
@@ -416,38 +418,38 @@ In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine imp
 
 ## 9. Cron Scheduling
 
-Browser-hosted minute-level PHP job scheduler (`cron.php` + `php_bridge.js`).
+Browser-hosted minute-level BOP job scheduler (`cron.bop` + `bop_bridge.js`).
 
 | Command | Description | Example |
 |---|---|---|
 | `cron()` | Lists all currently scheduled cron jobs as an associative array keyed by job ID. | `var_export(cron());` |
-| `cron($id, $schedule, $code)` | Registers or updates a job with a 5-field cron schedule (or `@hourly`, `@daily`, `@weekly`, `@monthly`, `@yearly`) and PHP code string or closure. | `cron(1, "* * * * *", "echo sysdate() . \"\\n\";");` |
+| `cron($id, $schedule, $code)` | Registers or updates a job with a 5-field cron schedule (or `@hourly`, `@daily`, `@weekly`, `@monthly`, `@yearly`) and BOP code string or closure. | `cron(1, "* * * * *", "echo sysdate() . \"\\n\";");` |
 | `cron($id)` | Deletes the scheduled job with ID `$id`; returns `true` if deleted, `false` if missing. | `cron(1);` |
 
 ---
 
 ## 10. Interactive I/O, Terminal & Browser Bridge Helpers
 
-Special PHP variables exposed by `index.html` and `stdlib.php` to connect PHP directly to jQuery Terminal, interactive prompts, DOM/CSS, HTTP fetch, and dynamic includes.
+Special BOP variables exposed by `index.html` and `stdlib.bop` to connect BOP directly to jQuery Terminal, interactive prompts, DOM/CSS, HTTP fetch, and dynamic includes.
 
 | Command / Global | Description | Example |
 |---|---|---|
-| `$io->read($prompt, $secret = false)` | Prompts the user for terminal input synchronously in async Uniter mode; masks with `*` if `$secret` is `true`. | `$name = $io->read("Name: ");` |
+| `$io->read($prompt, $secret = false)` | Prompts the user for terminal input synchronously in async BOP mode; masks with `*` if `$secret` is `true`. | `$name = $io->read("Name: ");` |
 | `$io->readline($prompt, $cb = null, $secret = false)` | Non-blocking or promise-based line reader with optional callback `function($line)`. | `$io->readline("Cmd: ", function($s){ echo $s; });` |
-| `myinput($prompt, $secret = false)` | Convenience wrapper around `$io->read()` defined in `stdlib.php`. | `$pw = myinput("Password: ", true);` |
+| `myinput($prompt, $secret = false)` | Convenience wrapper around `$io->read()` defined in `stdlib.bop`. | `$pw = myinput("Password: ", true);` |
 | `$maskaan($arg)` / `$maskuit($arg)` | Enables (`*`) or disables jQuery Terminal input masking (`stdlib` helpers). | `$maskaan(true);` |
 | `$term` | Exposed jQuery Terminal instance (`cols()`, `rows()`, `echo()`, `clear()`, `geometry()`, etc.). | `echo $term->cols() . "x" . $term->rows();` |
 | `$jQuery` | Exposed browser jQuery (`$`) function for DOM querying and CSS styling. | `$jQuery("body")->css("color", "#0f0");` |
-| `$includePhp($url)` | Fetches a PHP file over HTTP, strips leading `<?php`, and executes it in the active engine. | `$includePhp("screen_demo.php");` |
-| `$include_remote($url)` | Alias for `$includePhp()`. | `$include_remote("example.php");` |
-| `$bridge` | Underlying JS runtime bridge (`version`, `getStyle`, `setText`, `fetchText`, `cronMatches`, VFS, SQL, Screen helpers). | `$bridge->setText("title", "My PHP App");` |
-| `$meta` | Runtime metadata object (`engine => 'Uniter'`, `environment => 'browser'`). | `echo $meta->engine;` |
+| `$includeBop($url)` | Fetches a BOP file over HTTP, preprocesses `<?bop` tags, and executes it in the active engine. | `$includeBop("screen_demo.bop");` |
+| `$include_remote($url)` | Alias for `$includeBop()`. | `$include_remote("example.bop");` |
+| `$bridge` | Underlying JS runtime bridge (`version`, `getStyle`, `setText`, `fetchText`, `cronMatches`, VFS, SQL, Screen helpers). | `$bridge->setText("title", "My BOP App");` |
+| `$meta` | Runtime metadata object (`engine => 'BOP'`, `environment => 'browser'`). | `echo $meta->engine;` |
 
 ---
 
 ## 11. Types, Introspection, Reflection & Callables
 
-Core Uniter functions plus the enhanced `get_defined_functions()` registered in `php_bridge.js`.
+Core runtime functions plus the enhanced `get_defined_functions()` registered in `bop_bridge.js`.
 
 ### Type Checking & Debugging
 
@@ -466,7 +468,7 @@ Core Uniter functions plus the enhanced `get_defined_functions()` registered in 
 | `get_resource_type($res)` | Returns resource type string (e.g., `"stream"`). | `echo get_resource_type($fp);` |
 | `is_callable($var)` | Checks if variable is a valid function/closure/method callable. | `var_dump(is_callable("strlen"));` |
 | `var_dump($var)` | Prints type and structured representation of a single variable. | `var_dump(["a" => 1]);` |
-| `var_export($var, $return = false)` | Outputs or returns valid PHP code representing `$var`. | `$s = var_export([1, 2], true);` |
+| `var_export($var, $return = false)` | Outputs or returns valid BOP code representing `$var`. | `$s = var_export([1, 2], true);` |
 
 ### Symbols, Classes, Constants & Callables
 
@@ -483,7 +485,7 @@ Core Uniter functions plus the enhanced `get_defined_functions()` registered in 
 | `call_user_func_array($cb, $args)` | Calls a callback passing arguments from an array. | `echo call_user_func_array("sprintf", ["%s:%d", "x", 9]);` |
 | `func_num_args()` | Returns the number of arguments passed to the current function. | `function f() { return func_num_args(); }` |
 | `func_get_args()` | Returns an array of all arguments passed to the current function. | `function sum() { return array_sum(func_get_args()); }` |
-| `spl_autoload_register($cb = null)` | Registers an autoloader callback invoked when an unknown class is referenced. | `spl_autoload_register(function($c){ include $c.".php"; });` |
+| `spl_autoload_register($cb = null)` | Registers an autoloader callback invoked when an unknown class is referenced. | `spl_autoload_register(function($c){ include $c.".bop"; });` |
 | `spl_autoload_unregister($cb)` | Unregisters a previously registered SPL autoloader. | `spl_autoload_unregister($loader);` |
 | `spl_object_hash($obj)` | Returns a unique identifier hash string for an object instance. | `echo spl_object_hash($db);` |
 
@@ -491,7 +493,7 @@ Core Uniter functions plus the enhanced `get_defined_functions()` registered in 
 
 ## 12. Output Buffering
 
-Capture, inspect, discard, or flush stdout inside PHP scripts.
+Capture, inspect, discard, or flush stdout inside BOP scripts.
 
 | Command | Description | Example |
 |---|---|---|
@@ -512,51 +514,53 @@ Capture, inspect, discard, or flush stdout inside PHP scripts.
 | Command | Description | Example |
 |---|---|---|
 | `parse_url($url, $component = -1)` | Parses a URL into scheme, host, port, user, pass, path, query, fragment. | `$u = parse_url("https://example.com/a?x=1");` |
-| `getenv($name = null)` | Gets an environment variable if defined in the Uniter environment. | `$v = getenv("PATH");` |
-| `ini_get($option)` | Gets the value of a PHP configuration setting. | `echo ini_get("include_path");` |
-| `ini_set($option, $val)` | Sets a PHP configuration option and returns its old value. | `ini_set("display_errors", "1");` |
+| `getenv($name = null)` | Gets an environment variable if defined in the runtime environment. | `$v = getenv("PATH");` |
+| `ini_get($option)` | Gets the value of a BOP configuration setting. | `echo ini_get("include_path");` |
+| `ini_set($option, $val)` | Sets a BOP configuration option and returns its old value. | `ini_set("display_errors", "1");` |
 | `get_cfg_var($option)` | Gets a configuration option value from runtime config. | `echo get_cfg_var("include_path");` |
 | `get_include_path()` | Gets the current `include_path` configuration option. | `echo get_include_path();` |
 | `set_include_path($new_path)` | Sets the `include_path` configuration option. | `set_include_path(".:/lib");` |
-| `get_loaded_extensions()` | Returns an array of loaded Uniter extension names. | `var_export(get_loaded_extensions());` |
-| `phpversion()` | Returns the reported PHP version string. | `echo phpversion();` |
-| `zend_version()` | Returns the reported Zend engine version string. | `echo zend_version();` |
-| `php_uname($mode = "a")` | Returns system/environment information string. | `echo php_uname();` |
-| `error_reporting($level = null)` | Gets or sets the active PHP error reporting bitmask. | `error_reporting(E_ALL);` |
+| `get_loaded_extensions()` | Returns an array of loaded runtime extension names. | `var_export(get_loaded_extensions());` |
+| `bopversion()` | Returns the reported BOP version string (`"1.0.0-bop"`). | `echo bopversion();` |
+| `zend_version()` | Returns the underlying VM engine version string. | `echo zend_version();` |
+| `bop_uname($mode = "a")` | Returns browser/environment system information string. | `echo bop_uname();` |
+| `error_reporting($level = null)` | Gets or sets the active BOP error reporting bitmask. | `error_reporting(E_ALL);` |
 | `trigger_error($msg, $type = E_USER_NOTICE)` | Generates a user-level error, warning, or notice message. | `trigger_error("Check input", E_USER_WARNING);` |
 
 ---
 
 ## 14. Constants Reference
 
-Predefined constants registered across `vfs.js`, `math.php`, `arrays.php`, `sqlite.php`, and Uniter core:
+Predefined constants registered across `vfs.js`, `bop_bridge.js`, `math.bop`, `arrays.bop`, `sqlite.bop`, and runtime core:
 
+- **BOP Runtime & Output (`bop_bridge.js`):**
+  `BOP_VERSION`, `BOP_VERSION_ID`, `BOP_OS` (`'Browser'`), `BOP_SAPI` (`'bop-cli'`), `BOP_INT_MAX`, `BOP_OUTPUT_HANDLER_CLEANABLE`, `BOP_OUTPUT_HANDLER_FLUSHABLE`, `BOP_OUTPUT_HANDLER_REMOVABLE`, `BOP_OUTPUT_HANDLER_STDFLAGS`
 - **Files & Streams (`vfs.js`):**
-  `SEEK_SET` (`0`), `SEEK_CUR` (`1`), `SEEK_END` (`2`), `FILE_APPEND` (`8`), `FILE_IGNORE_NEW_LINES` (`2`), `FILE_SKIP_EMPTY_LINES` (`4`), `LOCK_EX` (`2`), `SCANDIR_SORT_ASCENDING` (`0`), `SCANDIR_SORT_DESCENDING` (`1`), `SCANDIR_SORT_NONE` (`2`), `DIRECTORY_SEPARATOR` (`'/'`), `PHP_EOL` (`"\n"`)
-- **Arrays & Sorting (`arrays.php` / core):**
+  `SEEK_SET` (`0`), `SEEK_CUR` (`1`), `SEEK_END` (`2`), `FILE_APPEND` (`8`), `FILE_IGNORE_NEW_LINES` (`2`), `FILE_SKIP_EMPTY_LINES` (`4`), `LOCK_EX` (`2`), `SCANDIR_SORT_ASCENDING` (`0`), `SCANDIR_SORT_DESCENDING` (`1`), `SCANDIR_SORT_NONE` (`2`), `DIRECTORY_SEPARATOR` (`'/'`), `BOP_EOL` (`"\n"`)
+- **Arrays & Sorting (`arrays.bop` / core):**
   `CASE_LOWER` (`0`), `CASE_UPPER` (`1`), `SORT_REGULAR`, `SORT_NUMERIC` (`1`), `SORT_STRING`, `SORT_NATURAL`, `SORT_ASC` (`4`), `SORT_DESC` (`3`)
-- **Math (`math.php`):**
-  `M_E`, `M_LOG2E`, `M_LOG10E`, `M_LN2`, `M_LN10`, `M_PI`, `M_PI_2`, `M_PI_4`, `M_1_PI`, `M_2_PI`, `M_SQRTPI`, `M_2_SQRTPI`, `M_SQRT2`, `M_SQRT3`, `M_SQRT1_2`, `M_LNPI`, `M_EULER`, `PHP_ROUND_HALF_UP` (`1`), `PHP_ROUND_HALF_DOWN` (`2`), `PHP_ROUND_HALF_EVEN` (`3`), `PHP_ROUND_HALF_ODD` (`4`), `INF`, `NAN`
-- **SQLite3 (`sqlite.php`):**
+- **Math (`math.bop`):**
+  `M_E`, `M_LOG2E`, `M_LOG10E`, `M_LN2`, `M_LN10`, `M_PI`, `M_PI_2`, `M_PI_4`, `M_1_PI`, `M_2_PI`, `M_SQRTPI`, `M_2_SQRTPI`, `M_SQRT2`, `M_SQRT3`, `M_SQRT1_2`, `M_LNPI`, `M_EULER`, `BOP_ROUND_HALF_UP` (`1`), `BOP_ROUND_HALF_DOWN` (`2`), `BOP_ROUND_HALF_EVEN` (`3`), `BOP_ROUND_HALF_ODD` (`4`), `INF`, `NAN`
+- **SQLite3 (`sqlite.bop`):**
   `SQLITE3_ASSOC` (`1`), `SQLITE3_NUM` (`2`), `SQLITE3_BOTH` (`3`), `SQLITE3_INTEGER` (`1`), `SQLITE3_FLOAT` (`2`), `SQLITE3_TEXT` (`3`), `SQLITE3_BLOB` (`4`), `SQLITE3_NULL` (`5`)
-- **PDO Class Constants (`PDO::*` in `sqlite.php`):**
+- **PDO Class Constants (`PDO::*` in `sqlite.bop`):**
   `PDO::FETCH_ASSOC` (`2`), `PDO::FETCH_NUM` (`3`), `PDO::FETCH_BOTH` (`4`), `PDO::FETCH_COLUMN` (`7`), `PDO::PARAM_NULL` (`0`), `PDO::PARAM_INT` (`1`), `PDO::PARAM_STR` (`2`), `PDO::PARAM_BOOL` (`5`)
 
 ---
 
 ## 15. Standalone Scripts & Unit Tests
 
-Run these scripts directly from the `php >` prompt with `include '...'` (or `$includePhp('...')`) without keeping test functions permanently loaded in memory:
+Run these scripts directly from the `bop >` prompt with `include '...'` (or `$includeBop('...')`) without keeping test functions permanently loaded in memory:
 
 | Script | Purpose | Example |
 |---|---|---|
-| `example.php` | Comprehensive walkthrough of every subsystem and all 8 test suites. | `include 'example.php';` |
-| `screen_demo.php` | Interactive 2D framebuffer demo using `screen_mode()`, `cls()`, `locate()`, `gotoxy()`, ANSI escapes, and `screen_line()`. Call `screen_demo();` after including. | `include 'screen_demo.php'; screen_demo();` |
-| `unit_test_string.php` | Runs 53 string and Perl `split()` assertions (`$unit_test_verbose = true;` for detailed output). | `include 'unit_test_string.php';` |
-| `unit_test_date.php` | Runs 16 Oracle date/number formatting and conversion assertions. | `include 'unit_test_date.php';` |
-| `unit_test_cron.php` | Runs 11 cron registration, override, deletion, and matcher assertions. | `include 'unit_test_cron.php';` |
-| `unit_test_file.php` | Runs 19 VFS file, directory, `cd()`/`pwd()`/`ls()`, stream, `glob()`, and `include()` assertions. | `include 'unit_test_file.php';` |
-| `unit_test_math.php` | Runs 15 math, trig, rounding, PRNG, and base-conversion assertions. | `include 'unit_test_math.php';` |
-| `unit_test_array.php` | Runs 17 array transform, set, reduction, and sort assertions. | `include 'unit_test_array.php';` |
-| `unit_test_sqlite.php` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'unit_test_sqlite.php';` |
-| `unit_test_screen.php` | Runs 10 screen geometry, framebuffer, `locate()`, `gotoxy()`, and ANSI assertions. | `include 'unit_test_screen.php';` |
+| `example.bop` | Comprehensive walkthrough of every subsystem and all 8 test suites. | `include 'example.bop';` |
+| `screen_demo.bop` | Interactive 2D framebuffer demo using `screen_mode()`, `cls()`, `locate()`, `gotoxy()`, ANSI escapes, and `screen_line()`. Call `screen_demo();` after including. | `include 'screen_demo.bop'; screen_demo();` |
+| `unit_test_string.bop` | Runs 53 string and Perl `split()` assertions (`$unit_test_verbose = true;` for detailed output). | `include 'unit_test_string.bop';` |
+| `unit_test_date.bop` | Runs 16 Oracle date/number formatting and conversion assertions. | `include 'unit_test_date.bop';` |
+| `unit_test_cron.bop` | Runs 11 cron registration, override, deletion, and matcher assertions. | `include 'unit_test_cron.bop';` |
+| `unit_test_file.bop` | Runs 19 VFS file, directory, `cd()`/`pwd()`/`ls()`, stream, `glob()`, and `include()` assertions. | `include 'unit_test_file.bop';` |
+| `unit_test_math.bop` | Runs 15 math, trig, rounding, PRNG, and base-conversion assertions. | `include 'unit_test_math.bop';` |
+| `unit_test_array.bop` | Runs 17 array transform, set, reduction, and sort assertions. | `include 'unit_test_array.bop';` |
+| `unit_test_sqlite.bop` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'unit_test_sqlite.bop';` |
+| `unit_test_screen.bop` | Runs 10 screen geometry, framebuffer, `locate()`, `gotoxy()`, and ANSI assertions. | `include 'unit_test_screen.bop';` |

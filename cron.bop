@@ -1,3 +1,4 @@
+<?bop
 function cron($id = null, $schedule = null, $code = null) {
 	global $bridge;
 	if ($id === null) {

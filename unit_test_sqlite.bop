@@ -1,4 +1,4 @@
-<?php
+<?bop
 return call_user_func(function($verbose) {
 	$dbPath = '/tmp/__sqlite_unit_test.db';
 	if (is_file($dbPath)) {
@@ -81,6 +81,6 @@ return call_user_func(function($verbose) {
 		}
 	}
 
-	echo "unit_test_sqlite.php: " . $passed . "/" . count($cases) . " passed\n";
+	echo "unit_test_sqlite.bop: " . $passed . "/" . count($cases) . " passed\n";
 	return $failed === 0;
 }, isset($unit_test_verbose) && $unit_test_verbose);

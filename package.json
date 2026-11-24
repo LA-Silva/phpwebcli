@@ -1,7 +1,7 @@
 {
-  "name": "phpwebcli",
+  "name": "bopwebcli",
   "version": "1.0.0",
-  "description": "Client-side, browser-hosted interactive PHP REPL powered by Uniter, jQuery Terminal, and PrismJS",
+  "description": "Client-side, browser-hosted interactive BOP (Browser-Oriented PHP) REPL powered by Uniter, jQuery Terminal, and PrismJS",
   "private": true,
   "type": "module",
   "scripts": {

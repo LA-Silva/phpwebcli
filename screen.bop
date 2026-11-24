@@ -1,4 +1,4 @@
-<?php
+<?bop
 
 if (!function_exists('screen_columns')) {
 	function screen_columns() {

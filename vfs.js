@@ -434,10 +434,10 @@
 		};
 	}
 
-	function registerPhpStreamFunctions(php, vfs) {
-		const phpState = php.environment.getState();
-		const vf = phpState.getValueFactory();
-		const ff = phpState.getFutureFactory();
+	function registerBopStreamFunctions(bop, vfs) {
+		const bopState = bop.environment.getState();
+		const vf = bopState.getValueFactory();
+		const ff = bopState.getFutureFactory();
 
 		const fsConstants = {
 			SEEK_SET: 0,
@@ -451,11 +451,11 @@
 			SCANDIR_SORT_DESCENDING: 1,
 			SCANDIR_SORT_NONE: 2,
 			DIRECTORY_SEPARATOR: '/',
-			PHP_EOL: '\n'
+			BOP_EOL: '\n'
 		};
 		Object.keys(fsConstants).forEach(function(constName) {
 			try {
-				php.environment.defineConstant(constName, fsConstants[constName]);
+				bop.environment.defineConstant(constName, fsConstants[constName]);
 			} catch (_e) {}
 		});
 
@@ -467,7 +467,7 @@
 			return val.getResource().stream;
 		}
 
-		php.environment.defineFunction('fopen', function(internals) {
+		bop.environment.defineFunction('fopen', function(internals) {
 			internals.disableAutoCoercion();
 			return function(pathRef, modeRef) {
 				const rawPath = String(pathRef.getValue().getNative() ?? '');
@@ -620,7 +620,7 @@
 			};
 		});
 
-		php.environment.defineFunction('fread', function(internals) {
+		bop.environment.defineFunction('fread', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef, lenRef) {
 				const st = getStream(resRef);
@@ -630,7 +630,7 @@
 			};
 		});
 
-		php.environment.defineFunction('fgets', function(internals) {
+		bop.environment.defineFunction('fgets', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef, lenRef) {
 				const st = getStream(resRef);
@@ -641,7 +641,7 @@
 			};
 		});
 
-		php.environment.defineFunction('fgetc', function(internals) {
+		bop.environment.defineFunction('fgetc', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef) {
 				const st = getStream(resRef);
@@ -651,7 +651,7 @@
 			};
 		});
 
-		php.environment.defineFunction('fputs', function(internals) {
+		bop.environment.defineFunction('fputs', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef, dataRef, lenRef) {
 				const st = getStream(resRef);
@@ -667,7 +667,7 @@
 			};
 		});
 
-		php.environment.defineFunction('fseek', function(internals) {
+		bop.environment.defineFunction('fseek', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef, offsetRef, whenceRef) {
 				const st = getStream(resRef);
@@ -678,7 +678,7 @@
 			};
 		});
 
-		php.environment.defineFunction('ftell', function(internals) {
+		bop.environment.defineFunction('ftell', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef) {
 				const st = getStream(resRef);
@@ -688,7 +688,7 @@
 			};
 		});
 
-		php.environment.defineFunction('rewind', function(internals) {
+		bop.environment.defineFunction('rewind', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef) {
 				const st = getStream(resRef);
@@ -697,7 +697,7 @@
 			};
 		});
 
-		php.environment.defineFunction('ftruncate', function(internals) {
+		bop.environment.defineFunction('ftruncate', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef, sizeRef) {
 				const st = getStream(resRef);
@@ -706,7 +706,7 @@
 			};
 		});
 
-		php.environment.defineFunction('fflush', function(internals) {
+		bop.environment.defineFunction('fflush', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef) {
 				const st = getStream(resRef);
@@ -715,14 +715,14 @@
 			};
 		});
 
-		php.environment.defineFunction('fpassthru', function(internals) {
+		bop.environment.defineFunction('fpassthru', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef) {
 				const st = getStream(resRef);
 				if (!st) return vf.createBoolean(false);
 				const rest = st.passthru();
 				if (rest === false) return vf.createBoolean(false);
-				php.getStdout().write(rest);
+				bop.getStdout().write(rest);
 				return vf.createInteger(rest.length);
 			};
 		});
@@ -730,5 +730,5 @@
 
 	globalScope.createLocalStorageVfs = createLocalStorageVfs;
 	globalScope.createVfsBridgeHelpers = createVfsBridgeHelpers;
-	globalScope.registerPhpStreamFunctions = registerPhpStreamFunctions;
+	globalScope.registerBopStreamFunctions = registerBopStreamFunctions;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,4 +1,4 @@
-<?php
+<?bop
 return call_user_func(function($verbose) {
 	$cases = [
 		['len("hello")', len('hello'), 5],
@@ -75,6 +75,6 @@ return call_user_func(function($verbose) {
 		}
 	}
 
-	echo "unit_test_string.php: " . $passed . "/" . count($cases) . " passed\n";
+	echo "unit_test_string.bop: " . $passed . "/" . count($cases) . " passed\n";
 	return $failed === 0;
 }, isset($unit_test_verbose) && $unit_test_verbose);

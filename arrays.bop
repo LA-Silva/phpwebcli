@@ -1,4 +1,4 @@
-<?php
+<?bop
 
 if (!defined('CASE_LOWER')) define('CASE_LOWER', 0);
 if (!defined('CASE_UPPER')) define('CASE_UPPER', 1);

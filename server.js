@@ -10,7 +10,12 @@ const PORT = Number(process.env.PORT) || 3000;
 const HOST = '0.0.0.0';
 
 app.use(express.static(__dirname, {
-  dotfiles: 'ignore'
+  dotfiles: 'ignore',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.bop')) {
+      res.type('text/plain; charset=utf-8');
+    }
+  }
 }));
 
 app.get('*', (req, res) => {

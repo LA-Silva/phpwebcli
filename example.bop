@@ -1,13 +1,13 @@
-<?php
+<?bop
 /**
- * example.php — Comprehensive showcase of PHP language constructs and
+ * example.bop — Comprehensive showcase of BOP language constructs and
  * custom CLI functions available in this release.
  *
- * How to run from the browser PHP CLI (php > prompt):
- *   $includePhp('example.php');
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('example.bop');
  *
  * Or using the remote include alias:
- *   $include_remote('example.php');
+ *   $include_remote('example.bop');
  */
 
 echo "=== 1. Output & Tags ===\n";
@@ -15,7 +15,7 @@ echo "Hello from echo!\n";
 print "Hello from print!\n";
 
 echo "\n=== 2. Variables, Scope, Constants & Magic Constants ===\n";
-$greeting = "PHPWebCLI";
+$greeting = "BOPWebCLI";
 $varName = "greeting";
 echo "Variable variable: " . $$varName . "\n";
 
@@ -193,14 +193,14 @@ $dev2 = clone $dev1;
 echo "OOP: " . $dev2->describe() . ", instanceof Printable=" . (($dev2 instanceof Printable) ? 'true' : 'false') . ", count=" . BaseDevice::$count . "\n";
 
 echo "\n=== 8. BASIC-Style String Functions & sprintf() ===\n";
-$sample = "  Hello PHPWebCLI  ";
+$sample = "  Hello BOPWebCLI  ";
 echo "len('hello')=" . len('hello') . "\n";
 echo "left('hello', 2)=" . left('hello', 2) . ", right('hello', 2)=" . right('hello', 2) . "\n";
 echo "mid('abcdef', 2, 3)=" . mid('abcdef', 2, 3) . ", instr('banana', 'na')=" . instr('banana', 'na') . "\n";
 echo "lower('AbC')=" . lower('AbC') . ", upper('AbC')=" . upper('AbC') . "\n";
 echo "chr(65)=" . chr(65) . ", val('  42.5abc')=" . val('  42.5abc') . "\n";
 echo "ltrim='" . ltrim($sample) . "', rtrim='" . rtrim($sample) . "'\n";
-echo "strcmp('10', '2')=" . strcmp('10', '2') . ", stricmp('PHP', 'php')=" . stricmp('PHP', 'php') . "\n";
+echo "strcmp('10', '2')=" . strcmp('10', '2') . ", stricmp('BOP', 'bop')=" . stricmp('BOP', 'bop') . "\n";
 echo "space: '[" . space(4) . "]'\n";
 echo sprintf("sprintf: %s #%03d -> %.2f (hex=%X, char=%c)\n", "Item", 7, 12.345, 255, 65);
 echo "split('/[,;]\\s*/'): " . implode('|', split('/[,;]\s*/', 'one, two;three')) . "\n";
@@ -288,7 +288,7 @@ echo "Screen size: " . screen_columns() . " columns x " . screen_lines() . " lin
 //   locate(5, 10); echo "Hi!";  // BASIC-style (row, col)
 //   gotoxy(10, 6); echo "OK";   // X/Y-style (col, row)
 //   screen_mode(false);         // return to REPL (or press ESC)
-//   $includePhp('screen_demo.php'); // full interactive screen demo
+//   $includeBop('screen_demo.bop'); // full interactive screen demo
 
 echo "\n=== 17. Introspection: get_defined_functions() ===\n";
 $definedFns = get_defined_functions();
@@ -296,13 +296,13 @@ echo "Internal functions: " . count($definedFns['internal']) . ", User functions
 echo "User functions: " . implode(', ', $definedFns['user']) . "\n";
 
 echo "\n=== 18. Built-in Test Suites ===\n";
-include 'unit_test_string.php';
-include 'unit_test_date.php';
-include 'unit_test_cron.php';
-include 'unit_test_file.php';
-include 'unit_test_math.php';
-include 'unit_test_array.php';
-include 'unit_test_sqlite.php';
-include 'unit_test_screen.php';
+include 'unit_test_string.bop';
+include 'unit_test_date.bop';
+include 'unit_test_cron.bop';
+include 'unit_test_file.bop';
+include 'unit_test_math.bop';
+include 'unit_test_array.bop';
+include 'unit_test_sqlite.bop';
+include 'unit_test_screen.bop';
 
-echo "\nDone! Try running individual snippets right at the php > prompt.\n";
+echo "\nDone! Try running individual snippets right at the bop > prompt.\n";

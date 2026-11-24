@@ -1,3 +1,4 @@
+<?bop
 function sysdate($format = null) {
 	global $bridge;
 	return $bridge->sysdate($format);

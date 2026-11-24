@@ -1,4 +1,4 @@
-<?php
+<?bop
 
 if (!defined('M_PI')) define('M_PI', 3.14159265358979323846);
 if (!defined('M_E')) define('M_E', 2.7182818284590452354);
@@ -18,10 +18,10 @@ if (!defined('M_SQRT1_2')) define('M_SQRT1_2', 0.70710678118654752440);
 if (!defined('M_LNPI')) define('M_LNPI', 1.14472988584940017414);
 if (!defined('M_EULER')) define('M_EULER', 0.57721566490153286061);
 
-if (!defined('PHP_ROUND_HALF_UP')) define('PHP_ROUND_HALF_UP', 1);
-if (!defined('PHP_ROUND_HALF_DOWN')) define('PHP_ROUND_HALF_DOWN', 2);
-if (!defined('PHP_ROUND_HALF_EVEN')) define('PHP_ROUND_HALF_EVEN', 3);
-if (!defined('PHP_ROUND_HALF_ODD')) define('PHP_ROUND_HALF_ODD', 4);
+if (!defined('BOP_ROUND_HALF_UP')) define('BOP_ROUND_HALF_UP', 1);
+if (!defined('BOP_ROUND_HALF_DOWN')) define('BOP_ROUND_HALF_DOWN', 2);
+if (!defined('BOP_ROUND_HALF_EVEN')) define('BOP_ROUND_HALF_EVEN', 3);
+if (!defined('BOP_ROUND_HALF_ODD')) define('BOP_ROUND_HALF_ODD', 4);
 
 if (!defined('INF')) define('INF', $bridge->mathInf());
 if (!defined('NAN')) define('NAN', $bridge->mathNan());
@@ -46,7 +46,7 @@ if (!function_exists('floor')) {
 }
 
 if (!function_exists('round')) {
-	function round($num, $precision = 0, $mode = PHP_ROUND_HALF_UP) {
+	function round($num, $precision = 0, $mode = BOP_ROUND_HALF_UP) {
 		global $bridge;
 		return (float) $bridge->mathRound($num, (int) $precision, (int) $mode);
 	}

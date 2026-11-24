@@ -1,4 +1,4 @@
-<?php
+<?bop
 
 if (!defined('SQLITE3_ASSOC')) define('SQLITE3_ASSOC', 1);
 if (!defined('SQLITE3_NUM')) define('SQLITE3_NUM', 2);

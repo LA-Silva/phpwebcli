@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive PHP Shell (Uniter)</title>
+    <title>Interactive BOP Shell (Browser-Oriented PHP)</title>
 
     <!-- jQuery Terminal CSS -->
     <link rel="stylesheet" href="./assets/jquery.terminal.min.css"/>
-    <!-- PrismJS CSS for PHP Syntax Highlighting -->
+    <!-- PrismJS CSS for Syntax Highlighting -->
     <link rel="stylesheet" href="./assets/prism-coy.min.css"/>
 
     <style>
@@ -79,14 +79,14 @@
 </head>
 <body>
     <div id="screen-framebuffer" aria-live="polite">
-        <button id="screen-exit-btn" type="button" title="Return to PHP prompt">ESC: Exit Screen</button>
+        <button id="screen-exit-btn" type="button" title="Return to BOP prompt">ESC: Exit Screen</button>
         <pre id="screen-framebuffer-pre"></pre>
     </div>
 
     <!-- 1. jQuery -->
     <script src="./assets/jquery.min.js"></script>
 
-    <!-- 2. PrismJS + PHP Language Definition (Required for $.terminal.syntax('php')) -->
+    <!-- 2. PrismJS + Grammar Definition (Required for $.terminal.syntax('bop')) -->
     <script src="./assets/prism.min.js"></script>
     <script src="./assets/prism-markup-templating.min.js"></script>
     <script src="./assets/prism-php.min.js"></script>
@@ -98,27 +98,27 @@
     <!-- 4. Uniter Standalone Browser Bundle -->
     <script src="./assets/uniter.js"></script>
 
-    <!-- 5. App Runtime Modules (VFS, SQLite/PDO, 2D Screen Buffer, PHP Bridge) -->
+    <!-- 5. App Runtime Modules (VFS, SQLite/PDO, 2D Screen Buffer, BOP Bridge) -->
     <script src="./vfs.js"></script>
     <script src="./minisql.js"></script>
     <script src="./screen_buffer.js"></script>
-    <script src="./php_bridge.js"></script>
+    <script src="./bop_bridge.js"></script>
 
     <script>
         $(function() {
-            const vfs = createLocalStorageVfs('phpwebcli_vfs_v1');
+            const vfs = createLocalStorageVfs('bopwebcli_vfs_v1');
             const miniSql = createMiniSqlEngine(vfs);
             let term = null;
             const screenBuffer = createScreenBuffer({
                 getTerm: function() { return term; }
             });
 
-            // Initialize Uniter PHP engine backed by localStorage VFS
-            const php = uniter.createEngine('PHP', {
+            // Initialize BOP runtime engine backed by localStorage VFS
+            const bop = uniter.createEngine('PHP', {
                 fileSystem: vfs,
                 include: function(path, promise) {
                     if (vfs.isFile(path)) {
-                        promise.resolve(vfs.readFile(path));
+                        promise.resolve(preprocessBopTags(vfs.readFile(path)));
                         return;
                     }
                     fetch(path)
@@ -133,7 +133,7 @@
                             return res.text();
                         })
                         .then(function(code) {
-                            promise.resolve(code);
+                            promise.resolve(preprocessBopTags(code));
                         })
                         .catch(function(err) {
                             promise.reject(err);
@@ -141,67 +141,78 @@
                 }
             });
 
-            // Register Uniter PHP stream primitives, constants, sprintf(), and get_defined_functions()
-            registerPhpStreamFunctions(php, vfs);
-            registerPhpEngineExtensions(php);
+            // Register BOP stream primitives, constants, sprintf(), and get_defined_functions()
+            registerBopStreamFunctions(bop, vfs);
+            registerBopEngineExtensions(bop);
 
-            // Build and expose $bridge and $meta to PHP
-            const appBridge = createPhpBridge({
+            // Build and expose $bridge and $meta to BOP
+            const appBridge = createBopBridge({
                 $: $,
                 fetch: typeof fetch === 'function' ? fetch : null,
-                php: php,
+                bop: bop,
                 vfs: vfs,
                 miniSql: miniSql,
                 screenBuffer: screenBuffer,
                 getTerm: function() { return term; }
             });
 
-            php.expose(appBridge, 'bridge');
-            php.expose({
-                engine: 'Uniter',
+            bop.expose(appBridge, 'bridge');
+            bop.expose({
+                engine: 'BOP',
                 environment: 'browser'
             }, 'meta');
 
-            // Enable PHP syntax highlighting via PrismJS
-            $.terminal.syntax('php');
+            // Enable BOP syntax highlighting via PrismJS
+            if (typeof Prism !== 'undefined' && Prism.languages && Prism.languages.php) {
+                Prism.languages.bop = Prism.languages.php;
+            }
+            $.terminal.syntax('bop');
 
-            // PHP __toString magic method helper for jQuery objects
+            // __toString magic method helper for jQuery objects
             $.fn.__toString = function() {
                 return `#<jQuery(${this.length})>`;
             };
 
             // Initialize jQuery Terminal
             term = $('body').terminal(function(command) {
-                if (command.trim() === '') {
+                const raw = command.trim();
+                if (raw === '') {
                     return;
                 }
-                let code = command.trim();
-                if (!code.endsWith(';') && !code.endsWith('}')) {
-                    code += ';';
+                let src;
+                if (/^<\?bop\b/i.test(raw)) {
+                    src = preprocessBopTags(raw);
+                } else {
+                    let body = raw;
+                    if (!body.endsWith(';') && !body.endsWith('}')) {
+                        body += ';';
+                    }
+                    src = '<?php ' + preprocessBopTags(body);
                 }
-                php.execute(`<?php ${code}`).fail(function(err) {
-                    term.error(err.message || String(err));
+                bop.execute(src).fail(function(err) {
+                    term.error(formatBopError(err.message || String(err)));
                 });
             }, {
-                greetings: 'Interactive PHP Shell (Uniter)\nType PHP code (e.g., echo "Hello"; or $jQuery("body")->css("background", "#111");)\n',
-                name: 'php',
-                prompt: 'php > '
+                greetings: 'Interactive BOP Shell (Browser-Oriented PHP)\nType BOP code (e.g., echo "Hello"; or $jQuery("body")->css("background", "#111");)\n',
+                name: 'bop',
+                prompt: 'bop > '
             });
 
-            // Pipe PHP stdout and stderr to either active 2D screen framebuffer or terminal
-            php.getStdout().on('data', function(text) {
+            // Pipe BOP stdout and stderr to either active 2D screen framebuffer or terminal
+            bop.getStdout().on('data', function(text) {
+                const formatted = formatBopError(text);
                 if (screenBuffer.active) {
-                    screenBuffer.write(text);
+                    screenBuffer.write(formatted);
                 } else {
-                    term.echo(text, { newline: false });
+                    term.echo(formatted, { newline: false });
                 }
             });
 
-            php.getStderr().on('data', function(text) {
-                term.error(text);
+            bop.getStderr().on('data', function(text) {
+                term.error(formatBopError(text));
             });
 
-            async function includePhp(url) {
+            async function includeBop(url) {
                 const res = await fetch(url);
                 const contentType = (res.headers && res.headers.get('content-type')) || '';
                 if (!res.ok || (!/\.html?(\?|#|$)/i.test(String(url)) && contentType.toLowerCase().includes('text/html'))) {
@@ -209,19 +220,19 @@
                     return;
                 }
                 const code = await res.text();
-                const body = code.replace(/^\s*<\?(?:php)?/i, '');
-                return php.execute(`<?php ${body}`).fail(function(err) {
-                    term.error(err.message || String(err));
+                const stripped = preprocessBopTags(code).replace(/^\s*<\?(?:php)?/i, '');
+                return bop.execute(`<?php ${stripped}`).fail(function(err) {
+                    term.error(formatBopError(err.message || String(err)));
                 });
             }
 
-            // Expose terminal/DOM/include/mask helpers to PHP
-            php.expose(term, 'term');
-            php.expose($, 'jQuery');
-            php.expose(function(url) { return includePhp(url); }, 'include_remote');
-            php.expose(includePhp, 'includePhp');
-            php.expose(function(janee) { term.set_mask(false); return janee; }, 'maskuit');
-            php.expose(function(janee) { term.set_mask('*'); return janee; }, 'maskaan');
+            // Expose terminal/DOM/include/mask helpers to BOP
+            bop.expose(term, 'term');
+            bop.expose($, 'jQuery');
+            bop.expose(function(url) { return includeBop(url); }, 'include_remote');
+            bop.expose(includeBop, 'includeBop');
+            bop.expose(function(janee) { term.set_mask(false); return janee; }, 'maskuit');
+            bop.expose(function(janee) { term.set_mask('*'); return janee; }, 'maskaan');
 
             // Serialized interactive input queue ($io->read / $io->readline)
             const readQueue = [];
@@ -290,11 +301,11 @@
                 });
             }
 
-            php.expose({
+            bop.expose({
                 read: function(promptText, secret) {
-                    return php.createFFIResult(
+                    return bop.createFFIResult(
                         function() {
-                            throw new Error('io->read requires Uniter async mode');
+                            throw new Error('io->read requires BOP async mode');
                         },
                         function() {
                             return enqueueRead(promptText, secret);
@@ -303,9 +314,9 @@
                 },
                 readline: function(promptText, onLine, secret) {
                     if (typeof onLine !== 'function') {
-                        return php.createFFIResult(
+                        return bop.createFFIResult(
                             function() {
-                                throw new Error('io->readline without callback requires Uniter async mode');
+                                throw new Error('io->readline without callback requires BOP async mode');
                             },
                             function() {
                                 return enqueueRead(promptText, secret);
@@ -316,23 +327,23 @@
                 }
             }, 'io');
 
-            // Boot PHP standard library modules sequentially
-            includePhp('strings.php').then(function() {
-                return includePhp('dates.php');
+            // Boot BOP standard library modules sequentially
+            includeBop('strings.bop').then(function() {
+                return includeBop('dates.bop');
             }).then(function() {
-                return includePhp('cron.php');
+                return includeBop('cron.bop');
             }).then(function() {
-                return includePhp('files.php');
+                return includeBop('files.bop');
             }).then(function() {
-                return includePhp('math.php');
+                return includeBop('math.bop');
             }).then(function() {
-                return includePhp('arrays.php');
+                return includeBop('arrays.bop');
             }).then(function() {
-                return includePhp('sqlite.php');
+                return includeBop('sqlite.bop');
             }).then(function() {
-                return includePhp('screen.php');
+                return includeBop('screen.bop');
             }).then(function() {
-                return includePhp('stdlib.php');
+                return includeBop('stdlib.bop');
             });
         });
     </script>

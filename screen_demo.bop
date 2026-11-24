@@ -1,12 +1,12 @@
-<?php
+<?bop
 /**
- * screen_demo.php — Interactive showcase of all 2D screen framebuffer functions.
+ * screen_demo.bop — Interactive showcase of all 2D screen framebuffer functions.
  *
- * Run from the browser PHP CLI (php > prompt):
- *   $includePhp('screen_demo.php');
+ * Run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('screen_demo.bop');
  *
  * Press ESC (or click "ESC: Exit Screen", or run screen_mode(false);)
- * to return from the 2D screen back to the php > prompt.
+ * to return from the 2D screen back to the bop > prompt.
  */
 
 if (!function_exists('screen_demo')) {
@@ -38,7 +38,7 @@ if (!function_exists('screen_demo')) {
 		}
 
 		// 4. Centered header via locate()
-		$title = " PHPWebCLI 2D Screen Demo (" . $cols . "x" . $lines . ") ";
+		$title = " BOPWebCLI 2D Screen Demo (" . $cols . "x" . $lines . ") ";
 		$titleCol = (int) (($cols - strlen($title)) / 2) + 1;
 		if ($titleCol < 3) {
 			$titleCol = 3;

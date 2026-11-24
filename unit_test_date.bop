@@ -1,4 +1,4 @@
-<?php
+<?bop
 return call_user_func(function($verbose) {
 	$now = sysdate();
 	$sampleTs = date_to_number('2026-11-22 12:00:06');
@@ -40,6 +40,6 @@ return call_user_func(function($verbose) {
 		}
 	}
 
-	echo "unit_test_date.php: " . $passed . "/" . count($cases) . " passed\n";
+	echo "unit_test_date.bop: " . $passed . "/" . count($cases) . " passed\n";
 	return $failed === 0;
 }, isset($unit_test_verbose) && $unit_test_verbose);
