@@ -316,7 +316,10 @@ Persistent browser filesystem backed by `localStorage` (`vfs.js` + `files.php` +
 | `scandir($dir, $order = 0)` | Lists `.` , `..`, and entries inside `$dir` (`1` sorts descending, `2` unsorted). | `$entries = scandir("/tmp");` |
 | `glob($pattern)` | Finds paths matching wildcards (`*`, `?`, `[abc]`). | `$logs = glob("/tmp/*.txt");` |
 | `getcwd()` | Returns the current working VFS directory. | `echo getcwd(); // "/"` |
+| `pwd()` | Bash-style alias for `getcwd()`. | `echo pwd(); // "/"` |
 | `chdir($dir)` | Changes the current working VFS directory. | `chdir("/tmp");` |
+| `cd($dir = "/")` | Bash-style wrapper for `chdir()`; defaults to `"/"` when called with no arguments. | `cd("/tmp"); cd("..");` |
+| `ls($path = null, $long = false)` | Lists entries in `$path` (defaults to `getcwd()`, omitting `.` and `..`; supports glob patterns and `$long = true` metadata arrays). | `var_export(ls("/tmp"));` or `foreach (ls() as $f) echo "$f\n";` |
 | `realpath($path)` | Resolves `.` / `..` / relative paths to a canonical VFS path, or `false` if nonexistent. | `echo realpath("../tmp/note.txt");` |
 | `basename($path, $suffix = "")` | Returns the trailing filename component (optionally stripping `$suffix`). | `echo basename("/var/log/app.log", ".log"); // "app"` |
 | `dirname($path)` | Returns the parent directory portion of a path. | `echo dirname("/var/log/app.log"); // "/var/log"` |
@@ -552,7 +555,7 @@ Run these scripts directly from the `php >` prompt with `include '...'` (or `$in
 | `unit_test_string.php` | Runs 53 string and Perl `split()` assertions (`$unit_test_verbose = true;` for detailed output). | `include 'unit_test_string.php';` |
 | `unit_test_date.php` | Runs 16 Oracle date/number formatting and conversion assertions. | `include 'unit_test_date.php';` |
 | `unit_test_cron.php` | Runs 11 cron registration, override, deletion, and matcher assertions. | `include 'unit_test_cron.php';` |
-| `unit_test_file.php` | Runs 16 VFS file, directory, stream, `glob()`, and `include()` assertions. | `include 'unit_test_file.php';` |
+| `unit_test_file.php` | Runs 19 VFS file, directory, `cd()`/`pwd()`/`ls()`, stream, `glob()`, and `include()` assertions. | `include 'unit_test_file.php';` |
 | `unit_test_math.php` | Runs 15 math, trig, rounding, PRNG, and base-conversion assertions. | `include 'unit_test_math.php';` |
 | `unit_test_array.php` | Runs 17 array transform, set, reduction, and sort assertions. | `include 'unit_test_array.php';` |
 | `unit_test_sqlite.php` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'unit_test_sqlite.php';` |

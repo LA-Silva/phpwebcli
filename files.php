@@ -171,3 +171,89 @@ if (!function_exists('chdir')) {
 	}
 }
 
+if (!function_exists('pwd')) {
+	function pwd() {
+		return getcwd();
+	}
+}
+
+if (!function_exists('cd')) {
+	function cd($directory = '/') {
+		$target = ($directory === null || $directory === '') ? '/' : (string) $directory;
+		return chdir($target);
+	}
+}
+
+if (!function_exists('ls')) {
+	function ls($path = null, $long = false) {
+		$target = ($path === null || $path === '') ? getcwd() : (string) $path;
+
+		if (strpos($target, '*') !== false || strpos($target, '?') !== false || strpos($target, '[') !== false) {
+			$matches = glob($target);
+			if ($matches === false) {
+				return false;
+			}
+			if (!$long) {
+				return $matches;
+			}
+			$rows = [];
+			foreach ($matches as $m) {
+				$full = realpath($m);
+				$isDir = $full !== false ? is_dir($full) : is_dir($m);
+				$rows[] = [
+					'name' => $m,
+					'type' => $isDir ? 'dir' : 'file',
+					'size' => $isDir ? 0 : (int) filesize($m),
+					'mtime' => (int) filemtime($m),
+				];
+			}
+			return $rows;
+		}
+
+		if (is_file($target)) {
+			$full = realpath($target);
+			$name = basename($full !== false ? $full : $target);
+			if (!$long) {
+				return [$name];
+			}
+			return [[
+				'name' => $name,
+				'type' => 'file',
+				'size' => (int) filesize($target),
+				'mtime' => (int) filemtime($target),
+			]];
+		}
+
+		if (!is_dir($target)) {
+			return false;
+		}
+
+		$entries = scandir($target);
+		if ($entries === false) {
+			return false;
+		}
+
+		$baseDir = realpath($target);
+		$prefix = ($baseDir === false || $baseDir === '/') ? '/' : ($baseDir . '/');
+		$out = [];
+		foreach ($entries as $entry) {
+			if ($entry === '.' || $entry === '..') {
+				continue;
+			}
+			if (!$long) {
+				$out[] = $entry;
+			} else {
+				$full = $prefix . $entry;
+				$isDir = is_dir($full);
+				$out[] = [
+					'name' => $entry,
+					'type' => $isDir ? 'dir' : 'file',
+					'size' => $isDir ? 0 : (int) filesize($full),
+					'mtime' => (int) filemtime($full),
+				];
+			}
+		}
+		return $out;
+	}
+}
+

@@ -60,7 +60,25 @@ return call_user_func(function($verbose) {
 	$cwdNow = getcwd();
 	$relExists = file_exists('hello.txt') && is_file('hello.txt');
 	$realPathOk = realpath('sub/../hello.txt');
+
+	$lsHere = ls();
+	$lsLong = ls(null, true);
+	$lsWildcard = ls('*.txt');
+	$lsSingle = ls('hello.txt');
+	$lsMissing = ls('does_not_exist');
+	$cdSubOk = cd('sub') && pwd() === $base . '/sub';
+	$cdUpOk = cd('..') && pwd() === $base;
+	$cdHomeOk = cd() && pwd() === '/';
 	chdir($prevCwd);
+
+	$lsLongHasHello = false;
+	if (is_array($lsLong)) {
+		foreach ($lsLong as $metaRow) {
+			if ($metaRow['name'] === 'hello.txt' && $metaRow['type'] === 'file' && $metaRow['size'] === 10) {
+				$lsLongHasHello = true;
+			}
+		}
+	}
 
 	file_put_contents($base . '/mod.php', '<?php return "vfs_included_ok";');
 	$includedVal = include($base . '/mod.php');
@@ -87,6 +105,9 @@ return call_user_func(function($verbose) {
 		['scandir includes . and .. and children', is_array($scan) && in_array('.', $scan) && in_array('..', $scan) && in_array('hello.txt', $scan) && in_array('sub', $scan), true],
 		['glob matches *.txt files', is_array($globRes) && in_array($base . '/hello.txt', $globRes), true],
 		['chdir + getcwd + relative path + realpath', $chdirOk && $cwdNow === $base && $relExists && $realPathOk === $base . '/hello.txt', true],
+		['cd() + pwd() relative, .., and default root', $cdSubOk && $cdUpOk && $cdHomeOk, true],
+		['ls() lists dir, glob wildcard, single file, and false on missing', is_array($lsHere) && !in_array('.', $lsHere) && in_array('hello.txt', $lsHere) && in_array('sub', $lsHere) && in_array('hello.txt', $lsWildcard) && $lsSingle === ['hello.txt'] && $lsMissing === false, true],
+		['ls(null, true) returns metadata entries', $lsLongHasHello, true],
 		['basename with suffix', basename('/var/log/app.log', '.log'), 'app'],
 		['include() loads PHP file from localStorage VFS', $includedVal, 'vfs_included_ok'],
 		['unlink + rmdir cleanup', $unlinkOk && $rmdirOk, true],
