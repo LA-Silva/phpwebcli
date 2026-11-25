@@ -39,7 +39,7 @@ if (!function_exists('screen_demo')) {
 
 		// 4. Centered header via locate()
 		$title = " BOPWebCLI 2D Screen Demo (" . $cols . "x" . $lines . ") ";
-		$titleCol = (int) (($cols - strlen($title)) / 2) + 1;
+		$titleCol = (int) (($cols - len($title)) / 2) + 1;
 		if ($titleCol < 3) {
 			$titleCol = 3;
 		}
@@ -50,10 +50,10 @@ if (!function_exists('screen_demo')) {
 		$afterTitleRow = cursor_row();
 		$afterTitleCol = cursor_col();
 
-		// 6. Position using X/Y coordinates via gotoxy($x, $y)
+		// 6. Position using row/col coordinates via locate($row, $col)
 		$rowGo = $lines >= 8 ? 4 : 3;
-		gotoxy(4, $rowGo);
-		echo "gotoxy(4, " . $rowGo . "): cursor after title was (" . $afterTitleRow . ", " . $afterTitleCol . ")";
+		locate($rowGo, 4);
+		echo "locate(" . $rowGo . ", 4): cursor after title was (" . $afterTitleRow . ", " . $afterTitleCol . ")";
 
 		// 7. Position using ANSI CSI escape sequence ESC[row;colH
 		$rowAnsi = $lines >= 10 ? 6 : min($lines - 1, $rowGo + 1);

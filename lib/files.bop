@@ -10,7 +10,7 @@ if (!function_exists('file_get_contents')) {
 if (!function_exists('file_put_contents')) {
 	function file_put_contents($filename, $data, $flags = 0) {
 		global $bridge;
-		$payload = is_array($data) ? implode('', $data) : (string) $data;
+		$payload = is_array($data) ? join('', $data) : (string) $data;
 		$append = (((int) $flags) & FILE_APPEND) !== 0;
 		return $bridge->vfsWriteFile((string) $filename, $payload, $append);
 	}
@@ -29,7 +29,7 @@ if (!function_exists('file')) {
 		$skipEmpty = (((int) $flags) & FILE_SKIP_EMPTY_LINES) !== 0;
 
 		$lines = [];
-		$len = strlen($content);
+		$len = len($content);
 		$start = 0;
 		while ($start < $len) {
 			$nlPos = strpos($content, "\n", $start);
@@ -141,9 +141,9 @@ if (!function_exists('basename')) {
 		$pos = strrpos($p, '/');
 		$base = $pos === false ? $p : substr($p, $pos + 1);
 		$suf = (string) $suffix;
-		if ($suf !== '' && strlen($base) >= strlen($suf)) {
-			if (substr($base, -strlen($suf)) === $suf) {
-				$base = substr($base, 0, strlen($base) - strlen($suf));
+		if ($suf !== '' && len($base) >= len($suf)) {
+			if (substr($base, -len($suf)) === $suf) {
+				$base = substr($base, 0, len($base) - len($suf));
 			}
 		}
 		return $base;
@@ -157,36 +157,24 @@ if (!function_exists('realpath')) {
 	}
 }
 
-if (!function_exists('getcwd')) {
-	function getcwd() {
+if (!function_exists('pwd')) {
+	function pwd() {
 		global $bridge;
 		return $bridge->vfsGetCwd();
 	}
 }
 
-if (!function_exists('chdir')) {
-	function chdir($directory) {
-		global $bridge;
-		return $bridge->vfsChdir((string) $directory);
-	}
-}
-
-if (!function_exists('pwd')) {
-	function pwd() {
-		return getcwd();
-	}
-}
-
 if (!function_exists('cd')) {
 	function cd($directory = '/') {
+		global $bridge;
 		$target = ($directory === null || $directory === '') ? '/' : (string) $directory;
-		return chdir($target);
+		return $bridge->vfsChdir($target);
 	}
 }
 
 if (!function_exists('ls')) {
 	function ls($path = null, $long = false) {
-		$target = ($path === null || $path === '') ? getcwd() : (string) $path;
+		$target = ($path === null || $path === '') ? pwd() : (string) $path;
 
 		if (strpos($target, '*') !== false || strpos($target, '?') !== false || strpos($target, '[') !== false) {
 			$matches = glob($target);

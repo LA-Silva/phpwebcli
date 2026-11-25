@@ -303,12 +303,6 @@ if (!function_exists('getrandmax')) {
 	}
 }
 
-if (!function_exists('mt_getrandmax')) {
-	function mt_getrandmax() {
-		return 2147483647;
-	}
-}
-
 if (!function_exists('srand')) {
 	function srand($seed = null) {
 		global $bridge;
@@ -316,22 +310,8 @@ if (!function_exists('srand')) {
 	}
 }
 
-if (!function_exists('mt_srand')) {
-	function mt_srand($seed = null) {
-		global $bridge;
-		$bridge->mathSrand($seed);
-	}
-}
-
 if (!function_exists('rand')) {
 	function rand($min = null, $max = null) {
-		global $bridge;
-		return (int) $bridge->mathRand($min, $max);
-	}
-}
-
-if (!function_exists('mt_rand')) {
-	function mt_rand($min = null, $max = null) {
 		global $bridge;
 		return (int) $bridge->mathRand($min, $max);
 	}

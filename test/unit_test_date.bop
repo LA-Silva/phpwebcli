@@ -3,7 +3,7 @@ return call_user_func(function($verbose) {
 	$now = sysdate();
 	$sampleTs = date_to_number('2026-11-22 12:00:06');
 	$cases = [
-		['sysdate() format YYYY-MM-DD HH24:MI:SS', strlen($now) === 19 && substr($now, 4, 1) === '-' && substr($now, 10, 1) === ' ', true],
+		['sysdate() format YYYY-MM-DD HH24:MI:SS', len($now) === 19 && substr($now, 4, 1) === '-' && substr($now, 10, 1) === ' ', true],
 		['to_date("21-NOV-2026", "DD-MON-YYYY")', to_date('21-NOV-2026', 'DD-MON-YYYY'), '2026-11-21 00:00:00'],
 		['to_date("2026/11/21 02:05:09 PM", "YYYY/MM/DD HH12:MI:SS AM")', to_date('2026/11/21 02:05:09 PM', 'YYYY/MM/DD HH12:MI:SS AM'), '2026-11-21 14:05:09'],
 		['to_date("21-NOV-99", "DD-MON-RR")', to_date('21-NOV-99', 'DD-MON-RR'), '1999-11-21 00:00:00'],

@@ -40,14 +40,14 @@ function myinput($arg1, $secret = false) {
 
 
 $unit_test_verbose = true;
-include 'unit_test_string.bop';
-include 'unit_test_date.bop';
-include 'unit_test_cron.bop';
-include 'unit_test_file.bop';
-include 'unit_test_math.bop';
-include 'unit_test_array.bop';
-include 'unit_test_sqlite.bop';
-include 'unit_test_screen.bop';
+include 'test/unit_test_string.bop';
+include 'test/unit_test_date.bop';
+include 'test/unit_test_cron.bop';
+include 'test/unit_test_file.bop';
+include 'test/unit_test_math.bop';
+include 'test/unit_test_array.bop';
+include 'test/unit_test_sqlite.bop';
+include 'test/unit_test_screen.bop';
 unset($unit_test_verbose);
 
 $loginname = myinput("Login:");

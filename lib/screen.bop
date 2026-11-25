@@ -38,13 +38,6 @@ if (!function_exists('locate')) {
 	}
 }
 
-if (!function_exists('gotoxy')) {
-	function gotoxy($x, $y) {
-		global $bridge;
-		return (bool) $bridge->screenLocate((int) $y, (int) $x);
-	}
-}
-
 if (!function_exists('cursor_row')) {
 	function cursor_row() {
 		global $bridge;

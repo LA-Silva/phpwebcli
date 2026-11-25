@@ -95,8 +95,8 @@
     <script src="./assets/jquery.terminal.min.js"></script>
     <script src="./assets/prism.js"></script>
 
-    <!-- 4. Uniter Standalone Browser Bundle -->
-    <script src="./assets/uniter.js"></script>
+    <!-- 4. Standalone Pure-JS BOP Engine -->
+    <script src="./bop_engine.js"></script>
 
     <!-- 5. App Runtime Modules (VFS, SQLite/PDO, 2D Screen Buffer, BOP Bridge) -->
     <script src="./vfs.js"></script>
@@ -113,12 +113,12 @@
                 getTerm: function() { return term; }
             });
 
-            // Initialize BOP runtime engine backed by localStorage VFS
-            const bop = uniter.createEngine('PHP', {
+            // Initialize native BOP runtime engine backed by localStorage VFS
+            const bop = createBopEngine({
                 fileSystem: vfs,
                 include: function(path, promise) {
                     if (vfs.isFile(path)) {
-                        promise.resolve(preprocessBopTags(vfs.readFile(path)));
+                        promise.resolve(vfs.readFile(path));
                         return;
                     }
                     fetch(path)
@@ -133,7 +133,7 @@
                             return res.text();
                         })
                         .then(function(code) {
-                            promise.resolve(preprocessBopTags(code));
+                            promise.resolve(code);
                         })
                         .catch(function(err) {
                             promise.reject(err);
@@ -180,14 +180,14 @@
                     return;
                 }
                 let src;
-                if (/^<\?bop\b/i.test(raw)) {
-                    src = preprocessBopTags(raw);
+                if (/^(?:<\?bop\b|<\?=)/i.test(raw)) {
+                    src = raw;
                 } else {
                     let body = raw;
                     if (!body.endsWith(';') && !body.endsWith('}')) {
                         body += ';';
                     }
-                    src = '<?php ' + preprocessBopTags(body);
+                    src = '<?bop ' + body;
                 }
                 bop.execute(src).fail(function(err) {
                     term.error(formatBopError(err.message || String(err)));
@@ -220,8 +220,8 @@
                     return;
                 }
                 const code = await res.text();
-                const stripped = preprocessBopTags(code).replace(/^\s*<\?(?:php)?/i, '');
-                return bop.execute(`<?php ${stripped}`).fail(function(err) {
+                const src = /<\?(?:bop|=)/i.test(code) ? code : ('<?bop ' + code);
+                return bop.execute(src, url).fail(function(err) {
                     term.error(formatBopError(err.message || String(err)));
                 });
             }
@@ -229,7 +229,6 @@
             // Expose terminal/DOM/include/mask helpers to BOP
             bop.expose(term, 'term');
             bop.expose($, 'jQuery');
-            bop.expose(function(url) { return includeBop(url); }, 'include_remote');
             bop.expose(includeBop, 'includeBop');
             bop.expose(function(janee) { term.set_mask(false); return janee; }, 'maskuit');
             bop.expose(function(janee) { term.set_mask('*'); return janee; }, 'maskaan');
@@ -328,22 +327,22 @@
             }, 'io');
 
             // Boot BOP standard library modules sequentially
-            includeBop('strings.bop').then(function() {
-                return includeBop('dates.bop');
+            includeBop('lib/strings.bop').then(function() {
+                return includeBop('lib/dates.bop');
             }).then(function() {
-                return includeBop('cron.bop');
+                return includeBop('lib/cron.bop');
             }).then(function() {
-                return includeBop('files.bop');
+                return includeBop('lib/files.bop');
             }).then(function() {
-                return includeBop('math.bop');
+                return includeBop('lib/math.bop');
             }).then(function() {
-                return includeBop('arrays.bop');
+                return includeBop('lib/arrays.bop');
             }).then(function() {
-                return includeBop('sqlite.bop');
+                return includeBop('lib/sqlite.bop');
             }).then(function() {
-                return includeBop('screen.bop');
+                return includeBop('lib/screen.bop');
             }).then(function() {
-                return includeBop('stdlib.bop');
+                return includeBop('lib/stdlib.bop');
             });
         });
     </script>

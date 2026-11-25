@@ -35,9 +35,9 @@ Standard BOP syntax supported in the `bop >` REPL and `.bop` script files.
 | `echo $expr` | Outputs one or more strings or values to the terminal or active screen buffer. | `echo "Hello, world!\n";` |
 | `print $expr` | Outputs a single string or value and returns `1`. | `print "Done\n";` |
 | `include 'file.bop'` | Loads and executes a BOP file from VFS or server; emits a warning if missing and continues. | `include 'screen_demo.bop';` |
-| `include_once 'file.bop'` | Same as `include`, but loads the file only once per session. | `include_once 'unit_test_math.bop';` |
-| `require 'file.bop'` | Loads and executes a BOP file; throws a fatal error if missing. | `require 'strings.bop';` |
-| `require_once 'file.bop'` | Same as `require`, but loads the file only once per session. | `require_once 'dates.bop';` |
+| `include_once 'file.bop'` | Same as `include`, but loads the file only once per session. | `include_once 'test/unit_test_math.bop';` |
+| `require 'file.bop'` | Loads and executes a BOP file; throws a fatal error if missing. | `require 'lib/strings.bop';` |
+| `require_once 'file.bop'` | Same as `require`, but loads the file only once per session. | `require_once 'lib/dates.bop';` |
 | `isset($var)` | Returns `true` if a variable or array key exists and is not `null`. | `if (isset($name)) echo $name;` |
 | `empty($var)` | Returns `true` if a variable does not exist or evaluates to false/empty (`""`, `0`, `[]`, `null`). | `if (empty($items)) echo "None";` |
 | `unset($var)` | Destroys a variable or removes an array element. | `unset($temp);` |
@@ -54,14 +54,13 @@ Standard BOP syntax supported in the `bop >` REPL and `.bop` script files.
 
 ## 2. Strings & Text Formatting
 
-Includes core built-ins, `bop_bridge.js` upgrades (`sprintf`), and BASIC/Perl-style helpers in `strings.bop`.
+Includes core built-ins, `bop_bridge.js` upgrades (`sprintf`), and BASIC/Perl-style helpers in `lib/strings.bop`.
 
 ### Length, Substrings & Trimming
 
 | Command | Description | Example |
 |---|---|---|
-| `strlen($str)` | Returns the character length of a string. | `echo strlen("hello"); // 5` |
-| `len($str)` | BASIC-style alias for `strlen()`. | `echo len("hello"); // 5` |
+| `len($str)` | Returns the character length of a string. | `echo len("hello"); // 5` |
 | `substr($str, $start, $len = null)` | Extracts a portion of a string; negative offsets count from the end. | `echo substr("abcdef", 2, 3); // "cde"` |
 | `left($str, $length)` | Returns the leftmost `$length` characters (BASIC `LEFT$`). | `echo left("hello", 2); // "he"` |
 | `right($str, $length)` | Returns the rightmost `$length` characters (BASIC `RIGHT$`). | `echo right("hello", 2); // "lo"` |
@@ -87,10 +86,8 @@ Includes core built-ins, `bop_bridge.js` upgrades (`sprintf`), and BASIC/Perl-st
 
 | Command | Description | Example |
 |---|---|---|
-| `strtolower($str)` | Converts ASCII letters to lowercase. | `echo strtolower("HeLLo"); // "hello"` |
-| `lower($str)` | Alias for `strtolower()`. | `echo lower("WORLD"); // "world"` |
-| `strtoupper($str)` | Converts ASCII letters to uppercase. | `echo strtoupper("hello"); // "HELLO"` |
-| `upper($str)` | Alias for `strtoupper()`. | `echo upper("hello"); // "HELLO"` |
+| `lower($str)` | Converts ASCII letters to lowercase. | `echo lower("WORLD"); // "world"` |
+| `upper($str)` | Converts ASCII letters to uppercase. | `echo upper("hello"); // "HELLO"` |
 | `chr($code)` | Returns the single-byte character for ASCII code `0..255` (`$code & 255`). | `echo chr(65); // "A"` |
 | `val($str)` | Parses leading integer or float value from a string (BASIC `VAL`), or `0`. | `echo val(" -3.14px"); // -3.14` |
 
@@ -99,23 +96,22 @@ Includes core built-ins, `bop_bridge.js` upgrades (`sprintf`), and BASIC/Perl-st
 | Command | Description | Example |
 |---|---|---|
 | `explode($delim, $str, $limit = ...)` | Splits a string by a fixed delimiter into an array. | `$parts = explode(",", "a,b,c");` |
-| `implode($glue, $pieces)` | Joins array elements into a string using `$glue`. | `echo implode("-", ["a", "b"]); // "a-b"` |
-| `join($glue, $pieces)` | Alias for `implode()`. | `echo join(",", [1, 2, 3]); // "1,2,3"` |
+| `join($glue, $pieces)` | Joins array elements into a string using `$glue`. | `echo join(",", [1, 2, 3]); // "1,2,3"` |
 | `split($pattern, $str = null, $limit = 0)` | Perl-style split supporting 1-arg whitespace mode, fixed delimiter, or delimited regex `/.../`. | `$words = split("  foo   bar ");` |
 | `str_replace($search, $replace, $subj)` | Replaces all occurrences of `$search` (string or array) with `$replace`. | `echo str_replace("world", "BOP", "hello world");` |
 | `strtr($str, $from, $to = null)` | Translates characters or replaces pairs from an associative array. | `echo strtr("aba", "ab", "xy"); // "xyx"` |
 | `preg_quote($str, $delim = null)` | Escapes regular expression special characters. | `echo preg_quote("a+b?", "/"); // "a\+b\?"` |
 | `sprintf($format, ...$args)` | Formats values using `%s`, `%d`, `%i`, `%u`, `%f`, `%F`, `%e`, `%E`, `%g`, `%G`, `%x`, `%X`, `%o`, `%b`, `%c`, padding, precision, and positional `%1$s`. | `echo sprintf("%s-%04d-%.2f", "ID", 7, 3.1415);` |
 | `htmlspecialchars($str, ...)` | Converts `&`, `"`, `'`, `<`, `>` into HTML entities. | `echo htmlspecialchars("<b>hi</b>");` |
-| `htmlentities($str, ...)` | Converts all applicable characters into HTML entities. | `echo htmlentities("<a>");` |
-| `get_html_translation_table(...)` | Returns the translation table used by `htmlspecialchars`/`htmlentities`. | `$tbl = get_html_translation_table();` |
-| `hello123()` | Sample greeting function from `strings.bop` returning `"123hello world"`. | `echo hello123();` |
+| `get_html_translation_table(...)` | Returns the translation table used by `htmlspecialchars()`. | `$tbl = get_html_translation_table();` |
+| `banner($text, $return = false)` | Renders horizontal 6x6 uppercase pure-ASCII block-letter banner art (`#` and spaces). Prints directly by default or returns the string when `$return` is `true`. | `banner("BOP!");` |
+| `hello123()` | Sample greeting function from `lib/strings.bop` returning `"123hello world"`. | `echo hello123();` |
 
 ---
 
 ## 3. Arrays & Sorting
 
-Combines core built-ins with `arrays.bop` extensions.
+Combines core built-ins with `lib/arrays.bop` extensions.
 
 ### Creation, Inspection & Access
 
@@ -125,7 +121,7 @@ Combines core built-ins with `arrays.bop` extensions.
 | `array_fill($start, $count, $val)` | Fills an array with `$count` entries of `$val` starting at index `$start`. | `$a = array_fill(2, 3, "x");` |
 | `array_fill_keys($keys, $val)` | Creates an array using `$keys` as keys, all assigned `$val`. | `$a = array_fill_keys(["a", "b"], 0);` |
 | `array_combine($keys, $values)` | Creates an associative array using `$keys` for keys and `$values` for values. | `$a = array_combine(["x", "y"], [1, 2]);` |
-| `count($arr)` / `sizeof($arr)` | Returns the number of elements in an array. | `echo count([10, 20, 30]); // 3` |
+| `count($arr)` | Returns the number of elements in an array. | `echo count([10, 20, 30]); // 3` |
 | `array_keys($arr, ...)` | Returns all keys (or keys matching a search value) of an array. | `$k = array_keys(["a" => 1, "b" => 2]);` |
 | `array_values($arr)` | Re-indexes and returns all values of an array as a 0-based list. | `$v = array_values([2 => "x", 5 => "y"]);` |
 | `array_key_exists($key, $arr)` | Checks whether a key or index exists in an array (even if its value is `null`). | `if (array_key_exists("id", $row)) echo "ok";` |
@@ -192,19 +188,19 @@ Combines core built-ins with `arrays.bop` extensions.
 | `arsort(&$arr, $flags = SORT_REGULAR)` | Sorts associative array descending by value, preserving keys. | `arsort($scores);` |
 | `ksort(&$arr, $flags = SORT_REGULAR)` | Sorts array ascending by key. | `ksort($map);` |
 | `krsort(&$arr)` | Sorts array descending by key. | `krsort($map);` |
-| `usort(&$arr, $cmp)` | Sorts array values using custom comparator `$cmp($a, $b)` and re-indexes keys. | `usort($words, function($a,$b){ return strlen($a)-strlen($b); });` |
+| `usort(&$arr, $cmp)` | Sorts array values using custom comparator `$cmp($a, $b)` and re-indexes keys. | `usort($words, function($a,$b){ return len($a)-len($b); });` |
 | `uasort(&$arr, $cmp)` | Sorts array values using custom comparator while preserving keys. | `uasort($map, function($a,$b){ return $a <=> $b; });` |
-| `uksort(&$arr, $cmp)` | Sorts array keys using custom comparator. | `uksort($map, function($a,$b){ return strlen($a)-strlen($b); });` |
+| `uksort(&$arr, $cmp)` | Sorts array keys using custom comparator. | `uksort($map, function($a,$b){ return len($a)-len($b); });` |
 | `shuffle(&$arr)` | Randomly shuffles array elements in place (uses `rand`/`srand` state) and re-indexes. | `shuffle($deck);` |
 | `array_rand($arr, $num = 1)` | Picks one random key (or array of `$num` random keys) from `$arr`. | `$k = array_rand(["a" => 1, "b" => 2]);` |
 
-*(Internal sorting/merge helpers `__array_cmp_values`, `__array_merge_recursive_two`, and `__array_replace_recursive_two` also live in `arrays.bop`.)*
+*(Internal sorting/merge helpers `__array_cmp_values`, `__array_merge_recursive_two`, and `__array_replace_recursive_two` also live in `lib/arrays.bop`.)*
 
 ---
 
 ## 4. Math, Trigonometry, Randomness & Base Conversion
 
-Combines core functions (`ceil`, `dechex`) with `math.bop`.
+Combines core functions (`ceil`, `dechex`) with `lib/math.bop`.
 
 ### Basic Arithmetic & Rounding
 
@@ -258,9 +254,9 @@ Combines core functions (`ceil`, `dechex`) with `math.bop`.
 
 | Command | Description | Example |
 |---|---|---|
-| `srand($seed = null)` / `mt_srand($seed = null)` | Seeds the deterministic Mulberry32 PRNG used by `rand()`, `mt_rand()`, `shuffle()`, and `array_rand()`. | `srand(12345);` |
-| `rand($min = null, $max = null)` / `mt_rand(...)` | Generates a random integer in `[0, 2147483647]` or `[$min, $max]`. | `echo rand(1, 100);` |
-| `getrandmax()` / `mt_getrandmax()` | Returns the largest possible value from `rand()` / `mt_rand()` (`2147483647`). | `echo getrandmax();` |
+| `srand($seed = null)` | Seeds the deterministic Mulberry32 PRNG used by `rand()`, `shuffle()`, and `array_rand()`. | `srand(12345);` |
+| `rand($min = null, $max = null)` | Generates a random integer in `[0, 2147483647]` or `[$min, $max]`. | `echo rand(1, 100);` |
+| `getrandmax()` | Returns the largest possible value from `rand()` (`2147483647`). | `echo getrandmax();` |
 | `bindec($bin)` | Converts a binary string to decimal integer. | `echo bindec("101010"); // 42` |
 | `octdec($oct)` | Converts an octal string to decimal integer. | `echo octdec("755"); // 493` |
 | `hexdec($hex)` | Converts a hexadecimal string to decimal integer. | `echo hexdec("ff"); // 255` |
@@ -273,7 +269,7 @@ Combines core functions (`ceil`, `dechex`) with `math.bop`.
 
 ## 5. Dates, Times & Oracle-Style Formatters
 
-Combines core time functions with Oracle-compatible date/number helpers in `dates.bop`.
+Combines core time functions with Oracle-compatible date/number helpers in `lib/dates.bop`.
 
 | Command | Description | Example |
 |---|---|---|
@@ -290,7 +286,7 @@ Combines core time functions with Oracle-compatible date/number helpers in `date
 
 ## 6. Files, Directories & Streams (`localStorage` VFS)
 
-Persistent browser filesystem backed by `localStorage` (`vfs.js` + `files.bop` + core checks).
+Persistent browser filesystem backed by `localStorage` (`vfs.js` + `lib/files.bop` + core checks).
 
 ### High-Level File & Path Helpers
 
@@ -317,11 +313,9 @@ Persistent browser filesystem backed by `localStorage` (`vfs.js` + `files.bop` +
 | `rmdir($dir)` | Removes an empty directory. | `rmdir("/tmp/app/logs");` |
 | `scandir($dir, $order = 0)` | Lists `.` , `..`, and entries inside `$dir` (`1` sorts descending, `2` unsorted). | `$entries = scandir("/tmp");` |
 | `glob($pattern)` | Finds paths matching wildcards (`*`, `?`, `[abc]`). | `$logs = glob("/tmp/*.txt");` |
-| `getcwd()` | Returns the current working VFS directory. | `echo getcwd(); // "/"` |
-| `pwd()` | Bash-style alias for `getcwd()`. | `echo pwd(); // "/"` |
-| `chdir($dir)` | Changes the current working VFS directory. | `chdir("/tmp");` |
-| `cd($dir = "/")` | Bash-style wrapper for `chdir()`; defaults to `"/"` when called with no arguments. | `cd("/tmp"); cd("..");` |
-| `ls($path = null, $long = false)` | Lists entries in `$path` (defaults to `getcwd()`, omitting `.` and `..`; supports glob patterns and `$long = true` metadata arrays). | `var_export(ls("/tmp"));` or `foreach (ls() as $f) echo "$f\n";` |
+| `pwd()` | Returns the current working VFS directory (Bash-style). | `echo pwd(); // "/"` |
+| `cd($dir = "/")` | Changes the current working VFS directory (defaults to `"/"`). | `cd("/tmp"); cd("..");` |
+| `ls($path = null, $long = false)` | Lists entries in `$path` (defaults to `pwd()`, omitting `.` and `..`; supports glob patterns and `$long = true` metadata arrays). | `var_export(ls("/tmp"));` or `foreach (ls() as $f) echo "$f\n";` |
 | `realpath($path)` | Resolves `.` / `..` / relative paths to a canonical VFS path, or `false` if nonexistent. | `echo realpath("../tmp/note.txt");` |
 | `basename($path, $suffix = "")` | Returns the trailing filename component (optionally stripping `$suffix`). | `echo basename("/var/log/app.log", ".log"); // "app"` |
 | `dirname($path)` | Returns the parent directory portion of a path. | `echo dirname("/var/log/app.log"); // "/var/log"` |
@@ -332,7 +326,6 @@ Persistent browser filesystem backed by `localStorage` (`vfs.js` + `files.bop` +
 |---|---|---|
 | `fopen($file, $mode)` | Opens a VFS file stream (`r`, `r+`, `w`, `w+`, `a`, `a+`, `x`, `x+`, `c`, `c+`). | `$fp = fopen("/tmp/data.txt", "w+");` |
 | `fwrite($fp, $str, $len = null)` | Writes string data to stream at current pointer and returns bytes written. | `fwrite($fp, "alpha\nbeta\n");` |
-| `fputs($fp, $str, $len = null)` | Alias for `fwrite()`. | `fputs($fp, "gamma\n");` |
 | `fread($fp, $length)` | Reads up to `$length` bytes from stream. | `$chunk = fread($fp, 5);` |
 | `fgets($fp, $length = null)` | Reads one line (up to `\n` or EOF) from stream. | `$line = fgets($fp);` |
 | `fgetc($fp)` | Reads a single character from stream, or `false` at EOF. | `$ch = fgetc($fp);` |
@@ -349,7 +342,7 @@ Persistent browser filesystem backed by `localStorage` (`vfs.js` + `files.bop` +
 
 ## 7. Screen, Terminal & Cursor Control (2D Framebuffer)
 
-Provides terminal geometry queries and an Option 2 2D character grid framebuffer overlay (`screen.bop` + `screen_buffer.js`). Supports cursor positioning, `cls()`, and ANSI escape codes (`ESC[H`, `ESC[row;colH`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`). Press **ESC** or call `screen_mode(false)` to return to the normal REPL.
+Provides terminal geometry queries and an Option 2 2D character grid framebuffer overlay (`lib/screen.bop` + `screen_buffer.js`). Supports cursor positioning, `cls()`, and ANSI escape codes (`ESC[H`, `ESC[row;colH`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`). Press **ESC** or call `screen_mode(false)` to return to the normal REPL.
 
 | Command | Description | Example |
 |---|---|---|
@@ -358,7 +351,6 @@ Provides terminal geometry queries and an Option 2 2D character grid framebuffer
 | `screen_mode($enabled = null)` | Gets active mode (`bool`) when called with no args, or switches between 2D framebuffer (`true`) and normal REPL (`false`). | `screen_mode(true);` |
 | `cls()` | Clears the 2D screen framebuffer (and resets cursor to `(1, 1)`) or clears the jQuery Terminal in REPL mode. | `cls();` |
 | `locate($row, $col = 1)` | Activates 2D screen mode if needed and moves cursor to 1-based `($row, $col)`. | `locate(5, 10); echo "Menu";` |
-| `gotoxy($x, $y)` | Alias for `locate($y, $x)` taking `(column, row)` order like Turbo Pascal / C `conio`. | `gotoxy(10, 5); echo "Here";` |
 | `cursor_row()` | Returns the current 1-based cursor row inside the screen framebuffer. | `echo cursor_row();` |
 | `cursor_col()` | Returns the current 1-based cursor column inside the screen framebuffer. | `echo cursor_col();` |
 | `screen_line($row)` | Returns the plain text contents currently rendered on 1-based `$row`. | `echo trim(screen_line(5));` |
@@ -367,7 +359,7 @@ Provides terminal geometry queries and an Option 2 2D character grid framebuffer
 
 ## 8. SQLite3 & PDO Databases (Zero-WASM MiniSQL)
 
-In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine implemented in pure JavaScript (`minisql.js`) and exposed via BOP `SQLite3` and `PDO` classes (`sqlite.bop`). Supports `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE`, `INSERT`, `SELECT` (`JOIN`, `WHERE`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`, aggregates `COUNT`/`SUM`/`AVG`/`MIN`/`MAX`), `UPDATE`, `DELETE`, `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`, and `sqlite_master`.
+In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine implemented in pure JavaScript (`minisql.js`) and exposed via BOP `SQLite3` and `PDO` classes (`lib/sqlite.bop`). Supports `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE`, `INSERT`, `SELECT` (`JOIN`, `WHERE`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`, aggregates `COUNT`/`SUM`/`AVG`/`MIN`/`MAX`), `UPDATE`, `DELETE`, `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`, and `sqlite_master`.
 
 ### `SQLite3` Class
 
@@ -418,7 +410,7 @@ In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine imp
 
 ## 9. Cron Scheduling
 
-Browser-hosted minute-level BOP job scheduler (`cron.bop` + `bop_bridge.js`).
+Browser-hosted minute-level BOP job scheduler (`lib/cron.bop` + `bop_bridge.js`).
 
 | Command | Description | Example |
 |---|---|---|
@@ -430,18 +422,17 @@ Browser-hosted minute-level BOP job scheduler (`cron.bop` + `bop_bridge.js`).
 
 ## 10. Interactive I/O, Terminal & Browser Bridge Helpers
 
-Special BOP variables exposed by `index.html` and `stdlib.bop` to connect BOP directly to jQuery Terminal, interactive prompts, DOM/CSS, HTTP fetch, and dynamic includes.
+Special BOP variables exposed by `index.html` and `lib/stdlib.bop` to connect BOP directly to jQuery Terminal, interactive prompts, DOM/CSS, HTTP fetch, and dynamic includes.
 
 | Command / Global | Description | Example |
 |---|---|---|
 | `$io->read($prompt, $secret = false)` | Prompts the user for terminal input synchronously in async BOP mode; masks with `*` if `$secret` is `true`. | `$name = $io->read("Name: ");` |
 | `$io->readline($prompt, $cb = null, $secret = false)` | Non-blocking or promise-based line reader with optional callback `function($line)`. | `$io->readline("Cmd: ", function($s){ echo $s; });` |
-| `myinput($prompt, $secret = false)` | Convenience wrapper around `$io->read()` defined in `stdlib.bop`. | `$pw = myinput("Password: ", true);` |
+| `myinput($prompt, $secret = false)` | Convenience wrapper around `$io->read()` defined in `lib/stdlib.bop`. | `$pw = myinput("Password: ", true);` |
 | `$maskaan($arg)` / `$maskuit($arg)` | Enables (`*`) or disables jQuery Terminal input masking (`stdlib` helpers). | `$maskaan(true);` |
 | `$term` | Exposed jQuery Terminal instance (`cols()`, `rows()`, `echo()`, `clear()`, `geometry()`, etc.). | `echo $term->cols() . "x" . $term->rows();` |
 | `$jQuery` | Exposed browser jQuery (`$`) function for DOM querying and CSS styling. | `$jQuery("body")->css("color", "#0f0");` |
 | `$includeBop($url)` | Fetches a BOP file over HTTP, preprocesses `<?bop` tags, and executes it in the active engine. | `$includeBop("screen_demo.bop");` |
-| `$include_remote($url)` | Alias for `$includeBop()`. | `$include_remote("example.bop");` |
 | `$bridge` | Underlying JS runtime bridge (`version`, `getStyle`, `setText`, `fetchText`, `cronMatches`, VFS, SQL, Screen helpers). | `$bridge->setText("title", "My BOP App");` |
 | `$meta` | Runtime metadata object (`engine => 'BOP'`, `environment => 'browser'`). | `echo $meta->engine;` |
 
@@ -458,7 +449,7 @@ Core runtime functions plus the enhanced `get_defined_functions()` registered in
 | `gettype($var)` | Returns type name (`"integer"`, `"double"`, `"string"`, `"boolean"`, `"array"`, `"object"`, `"resource"`, `"NULL"`). | `echo gettype(3.14); // "double"` |
 | `is_null($var)` | Checks if `$var === null`. | `var_dump(is_null(null));` |
 | `is_bool($var)` | Checks if value is boolean. | `var_dump(is_bool(true));` |
-| `is_int($var)` / `is_integer($var)` | Checks if value is an integer. | `var_dump(is_int(42));` |
+| `is_int($var)` | Checks if value is an integer. | `var_dump(is_int(42));` |
 | `is_float($var)` | Checks if value is a floating-point number. | `var_dump(is_float(1.5));` |
 | `is_numeric($var)` | Checks if value is a number or numeric string. | `var_dump(is_numeric("42.5"));` |
 | `is_string($var)` | Checks if value is a string. | `var_dump(is_string("abc"));` |
@@ -466,7 +457,7 @@ Core runtime functions plus the enhanced `get_defined_functions()` registered in
 | `is_object($var)` | Checks if value is an object instance. | `var_dump(is_object(new stdClass()));` |
 | `is_resource($var)` | Checks if value is an open resource (such as a file stream). | `var_dump(is_resource($fp));` |
 | `get_resource_type($res)` | Returns resource type string (e.g., `"stream"`). | `echo get_resource_type($fp);` |
-| `is_callable($var)` | Checks if variable is a valid function/closure/method callable. | `var_dump(is_callable("strlen"));` |
+| `is_callable($var)` | Checks if variable is a valid function/closure/method callable. | `var_dump(is_callable("len"));` |
 | `var_dump($var)` | Prints type and structured representation of a single variable. | `var_dump(["a" => 1]);` |
 | `var_export($var, $return = false)` | Outputs or returns valid BOP code representing `$var`. | `$s = var_export([1, 2], true);` |
 
@@ -481,7 +472,7 @@ Core runtime functions plus the enhanced `get_defined_functions()` registered in
 | `get_class($obj)` | Returns the class name of an object. | `echo get_class($db); // "SQLite3"` |
 | `is_a($obj, $class)` | Checks whether `$obj` is an instance of `$class` or its subclass. | `var_dump(is_a(new PDOException(), "Exception"));` |
 | `get_defined_functions()` | Returns `['internal' => [...], 'user' => [...]]` listing every internal and user function. | `$fns = get_defined_functions(); echo count($fns['user']);` |
-| `call_user_func($cb, ...$args)` | Calls a callback passing individual arguments. | `echo call_user_func("strtoupper", "hi");` |
+| `call_user_func($cb, ...$args)` | Calls a callback passing individual arguments. | `echo call_user_func("upper", "hi");` |
 | `call_user_func_array($cb, $args)` | Calls a callback passing arguments from an array. | `echo call_user_func_array("sprintf", ["%s:%d", "x", 9]);` |
 | `func_num_args()` | Returns the number of arguments passed to the current function. | `function f() { return func_num_args(); }` |
 | `func_get_args()` | Returns an array of all arguments passed to the current function. | `function sum() { return array_sum(func_get_args()); }` |
@@ -531,19 +522,19 @@ Capture, inspect, discard, or flush stdout inside BOP scripts.
 
 ## 14. Constants Reference
 
-Predefined constants registered across `vfs.js`, `bop_bridge.js`, `math.bop`, `arrays.bop`, `sqlite.bop`, and runtime core:
+Predefined constants registered across `vfs.js`, `bop_bridge.js`, `lib/math.bop`, `lib/arrays.bop`, `lib/sqlite.bop`, and runtime core:
 
 - **BOP Runtime & Output (`bop_bridge.js`):**
   `BOP_VERSION`, `BOP_VERSION_ID`, `BOP_OS` (`'Browser'`), `BOP_SAPI` (`'bop-cli'`), `BOP_INT_MAX`, `BOP_OUTPUT_HANDLER_CLEANABLE`, `BOP_OUTPUT_HANDLER_FLUSHABLE`, `BOP_OUTPUT_HANDLER_REMOVABLE`, `BOP_OUTPUT_HANDLER_STDFLAGS`
 - **Files & Streams (`vfs.js`):**
   `SEEK_SET` (`0`), `SEEK_CUR` (`1`), `SEEK_END` (`2`), `FILE_APPEND` (`8`), `FILE_IGNORE_NEW_LINES` (`2`), `FILE_SKIP_EMPTY_LINES` (`4`), `LOCK_EX` (`2`), `SCANDIR_SORT_ASCENDING` (`0`), `SCANDIR_SORT_DESCENDING` (`1`), `SCANDIR_SORT_NONE` (`2`), `DIRECTORY_SEPARATOR` (`'/'`), `BOP_EOL` (`"\n"`)
-- **Arrays & Sorting (`arrays.bop` / core):**
+- **Arrays & Sorting (`lib/arrays.bop` / core):**
   `CASE_LOWER` (`0`), `CASE_UPPER` (`1`), `SORT_REGULAR`, `SORT_NUMERIC` (`1`), `SORT_STRING`, `SORT_NATURAL`, `SORT_ASC` (`4`), `SORT_DESC` (`3`)
-- **Math (`math.bop`):**
+- **Math (`lib/math.bop`):**
   `M_E`, `M_LOG2E`, `M_LOG10E`, `M_LN2`, `M_LN10`, `M_PI`, `M_PI_2`, `M_PI_4`, `M_1_PI`, `M_2_PI`, `M_SQRTPI`, `M_2_SQRTPI`, `M_SQRT2`, `M_SQRT3`, `M_SQRT1_2`, `M_LNPI`, `M_EULER`, `BOP_ROUND_HALF_UP` (`1`), `BOP_ROUND_HALF_DOWN` (`2`), `BOP_ROUND_HALF_EVEN` (`3`), `BOP_ROUND_HALF_ODD` (`4`), `INF`, `NAN`
-- **SQLite3 (`sqlite.bop`):**
+- **SQLite3 (`lib/sqlite.bop`):**
   `SQLITE3_ASSOC` (`1`), `SQLITE3_NUM` (`2`), `SQLITE3_BOTH` (`3`), `SQLITE3_INTEGER` (`1`), `SQLITE3_FLOAT` (`2`), `SQLITE3_TEXT` (`3`), `SQLITE3_BLOB` (`4`), `SQLITE3_NULL` (`5`)
-- **PDO Class Constants (`PDO::*` in `sqlite.bop`):**
+- **PDO Class Constants (`PDO::*` in `lib/sqlite.bop`):**
   `PDO::FETCH_ASSOC` (`2`), `PDO::FETCH_NUM` (`3`), `PDO::FETCH_BOTH` (`4`), `PDO::FETCH_COLUMN` (`7`), `PDO::PARAM_NULL` (`0`), `PDO::PARAM_INT` (`1`), `PDO::PARAM_STR` (`2`), `PDO::PARAM_BOOL` (`5`)
 
 ---
@@ -555,12 +546,12 @@ Run these scripts directly from the `bop >` prompt with `include '...'` (or `$in
 | Script | Purpose | Example |
 |---|---|---|
 | `example.bop` | Comprehensive walkthrough of every subsystem and all 8 test suites. | `include 'example.bop';` |
-| `screen_demo.bop` | Interactive 2D framebuffer demo using `screen_mode()`, `cls()`, `locate()`, `gotoxy()`, ANSI escapes, and `screen_line()`. Call `screen_demo();` after including. | `include 'screen_demo.bop'; screen_demo();` |
-| `unit_test_string.bop` | Runs 53 string and Perl `split()` assertions (`$unit_test_verbose = true;` for detailed output). | `include 'unit_test_string.bop';` |
-| `unit_test_date.bop` | Runs 16 Oracle date/number formatting and conversion assertions. | `include 'unit_test_date.bop';` |
-| `unit_test_cron.bop` | Runs 11 cron registration, override, deletion, and matcher assertions. | `include 'unit_test_cron.bop';` |
-| `unit_test_file.bop` | Runs 19 VFS file, directory, `cd()`/`pwd()`/`ls()`, stream, `glob()`, and `include()` assertions. | `include 'unit_test_file.bop';` |
-| `unit_test_math.bop` | Runs 15 math, trig, rounding, PRNG, and base-conversion assertions. | `include 'unit_test_math.bop';` |
-| `unit_test_array.bop` | Runs 17 array transform, set, reduction, and sort assertions. | `include 'unit_test_array.bop';` |
-| `unit_test_sqlite.bop` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'unit_test_sqlite.bop';` |
-| `unit_test_screen.bop` | Runs 10 screen geometry, framebuffer, `locate()`, `gotoxy()`, and ANSI assertions. | `include 'unit_test_screen.bop';` |
+| `screen_demo.bop` | Interactive 2D framebuffer demo using `screen_mode()`, `cls()`, `locate()`, ANSI escapes, and `screen_line()`. Call `screen_demo();` after including. | `include 'screen_demo.bop'; screen_demo();` |
+| `test/unit_test_string.bop` | Runs 58 string, `banner()`, and Perl `split()` assertions (`$unit_test_verbose = true;` for detailed output). | `include 'test/unit_test_string.bop';` |
+| `test/unit_test_date.bop` | Runs 16 Oracle date/number formatting and conversion assertions. | `include 'test/unit_test_date.bop';` |
+| `test/unit_test_cron.bop` | Runs 11 cron registration, override, deletion, and matcher assertions. | `include 'test/unit_test_cron.bop';` |
+| `test/unit_test_file.bop` | Runs 19 VFS file, directory, `cd()`/`pwd()`/`ls()`, stream, `glob()`, and `include()` assertions. | `include 'test/unit_test_file.bop';` |
+| `test/unit_test_math.bop` | Runs 15 math, trig, rounding, PRNG, and base-conversion assertions. | `include 'test/unit_test_math.bop';` |
+| `test/unit_test_array.bop` | Runs 17 array transform, set, reduction, and sort assertions. | `include 'test/unit_test_array.bop';` |
+| `test/unit_test_sqlite.bop` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'test/unit_test_sqlite.bop';` |
+| `test/unit_test_screen.bop` | Runs 10 screen geometry, framebuffer, `locate()`, and ANSI assertions. | `include 'test/unit_test_screen.bop';` |

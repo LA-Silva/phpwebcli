@@ -16,17 +16,17 @@ return call_user_func(function($verbose) {
 
 	$uArr = ['pear', 'fig', 'apple'];
 	usort($uArr, function($a, $b) {
-		return strlen($a) - strlen($b);
+		return len($a) - len($b);
 	});
 
 	$uaArr = ['first' => 'banana', 'second' => 'fig'];
 	uasort($uaArr, function($a, $b) {
-		return strlen($a) - strlen($b);
+		return len($a) - len($b);
 	});
 
 	$ukArr = ['bbb' => 1, 'a' => 2, 'cc' => 3];
 	uksort($ukArr, function($a, $b) {
-		return strlen($a) - strlen($b);
+		return len($a) - len($b);
 	});
 
 	$sp = ['a', 'b', 'c', 'd'];

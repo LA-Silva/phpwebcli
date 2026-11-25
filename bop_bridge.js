@@ -2,114 +2,7 @@
 	'use strict';
 
 	function preprocessBopTags(code) {
-		const src = String(code ?? '');
-		let out = '';
-		let i = 0;
-		const len = src.length;
-		let inBop = false;
-		let quote = null;
-		let inLineComment = false;
-		let inBlockComment = false;
-
-		while (i < len) {
-			const ch = src.charAt(i);
-			if (!inBop) {
-				if (src.slice(i, i + 5).toLowerCase() === '<?bop') {
-					const next = src.charAt(i + 5);
-					if (!next || /\s/.test(next) || (next === '?' && src.charAt(i + 6) === '>')) {
-						out += '<?php';
-						i += 5;
-						inBop = true;
-						continue;
-					}
-				}
-				if (src.slice(i, i + 3) === '<?=') {
-					out += '<?=';
-					i += 3;
-					inBop = true;
-					continue;
-				}
-				out += ch;
-				i++;
-				continue;
-			}
-
-			if (inLineComment) {
-				if (ch === '\n' || ch === '\r') {
-					inLineComment = false;
-				} else if (ch === '?' && src.charAt(i + 1) === '>') {
-					inLineComment = false;
-					inBop = false;
-					out += '?>';
-					i += 2;
-					continue;
-				}
-				out += ch;
-				i++;
-				continue;
-			}
-
-			if (inBlockComment) {
-				if (ch === '*' && src.charAt(i + 1) === '/') {
-					inBlockComment = false;
-					out += '*/';
-					i += 2;
-					continue;
-				}
-				out += ch;
-				i++;
-				continue;
-			}
-
-			if (quote) {
-				if (ch === '\\' && i + 1 < len) {
-					out += ch + src.charAt(i + 1);
-					i += 2;
-					continue;
-				}
-				if (ch === quote) {
-					quote = null;
-				}
-				out += ch;
-				i++;
-				continue;
-			}
-
-			if (ch === '?' && src.charAt(i + 1) === '>') {
-				inBop = false;
-				out += '?>';
-				i += 2;
-				continue;
-			}
-			if (ch === '\'' || ch === '"') {
-				quote = ch;
-				out += ch;
-				i++;
-				continue;
-			}
-			if (ch === '#') {
-				inLineComment = true;
-				out += ch;
-				i++;
-				continue;
-			}
-			if (ch === '/' && src.charAt(i + 1) === '/') {
-				inLineComment = true;
-				out += '//';
-				i += 2;
-				continue;
-			}
-			if (ch === '/' && src.charAt(i + 1) === '*') {
-				inBlockComment = true;
-				out += '/*';
-				i += 2;
-				continue;
-			}
-
-			out += ch;
-			i++;
-		}
-		return out;
+		return String(code ?? '');
 	}
 
 	function formatBopError(text) {
@@ -727,11 +620,9 @@
 			_parseCronExpression: function(expr) {
 				const aliases = {
 					'@yearly': '0 0 1 1 *',
-					'@annually': '0 0 1 1 *',
 					'@monthly': '0 0 1 * *',
 					'@weekly': '0 0 * * 0',
 					'@daily': '0 0 * * *',
-					'@midnight': '0 0 * * *',
 					'@hourly': '0 * * * *'
 				};
 				let normalized = String(expr ?? '').trim();
@@ -797,7 +688,7 @@
 							job.running = false;
 						}
 					} else {
-						bop.execute('<?php ' + preprocessBopTags(job.code))
+						bop.execute('<?bop ' + job.code)
 							.fail(logErr)
 							.always(function() { job.running = false; });
 					}
@@ -1084,7 +975,7 @@
 	}
 
 	function registerBopEngineExtensions(bop) {
-		// Upgrade Uniter's sprintf to support %f, %x, %X, %o, %b, %c, %u, %e, %E, %g, %G, width, precision, and positional args
+		// Register sprintf with support for %f, %x, %X, %o, %b, %c, %u, %e, %E, %g, %G, width, precision, and positional args
 		bop.environment.defineCoercingFunction('sprintf', function(format) {
 			const args = Array.prototype.slice.call(arguments, 1);
 			let argIndex = 0;
@@ -1177,136 +1068,6 @@
 			);
 		});
 
-		// Replace PHP-prefixed system functions and constants with BOP equivalents
-		const rootGlobalNs = bop.environment.getState().getGlobalNamespace();
-		const vf = bop.environment.getState().getValueFactory();
-		const oldPhpVersion = rootGlobalNs.functions.phpversion;
-		const oldPhpUname = rootGlobalNs.functions.php_uname;
-		const oldObStart = rootGlobalNs.functions.ob_start;
-		const oldExplode = rootGlobalNs.functions.explode;
-
-		bop.environment.defineCoercingFunction('bopversion', function() {
-			return typeof oldPhpVersion === 'function' ? '1.0.0-bop' : '1.0.0-bop';
-		});
-		bop.environment.defineCoercingFunction('bop_uname', function(mode) {
-			if (oldPhpUname) {
-				return 'BOP Browser (' + (mode ? String(mode) : 'a') + ')';
-			}
-			return 'BOP Browser';
-		});
-		delete rootGlobalNs.functions.phpversion;
-		delete rootGlobalNs.functions.php_uname;
-
-		// Rebind core functions whose type signatures default to PHP_* constants
-		if (typeof oldObStart === 'function') {
-			bop.environment.defineFunction('ob_start', function(internals) {
-				internals.disableAutoCoercion();
-				return function(cbRef, chunkRef, flagsRef) {
-					return oldObStart.call(
-						this,
-						cbRef || vf.createNull(),
-						chunkRef || vf.createInteger(0),
-						flagsRef || vf.createInteger(112)
-					);
-				};
-			});
-		}
-		if (typeof oldExplode === 'function') {
-			bop.environment.defineFunction('explode', function(internals) {
-				internals.disableAutoCoercion();
-				return function(sepRef, strRef, limRef) {
-					return oldExplode.call(
-						this,
-						sepRef,
-						strRef,
-						limRef || vf.createInteger(Number.MAX_SAFE_INTEGER || 2147483647)
-					);
-				};
-			});
-		}
-
-		const bopConstantMappings = [
-			['PHP_EOL', 'BOP_EOL', '\n'],
-			['PHP_INT_MAX', 'BOP_INT_MAX', Number.MAX_SAFE_INTEGER || 2147483647],
-			['PHP_OS', 'BOP_OS', 'Browser'],
-			['PHP_SAPI', 'BOP_SAPI', 'bop-cli'],
-			['PHP_VERSION', 'BOP_VERSION', '1.0.0-bop'],
-			['PHP_VERSION_ID', 'BOP_VERSION_ID', 10000],
-			['PHP_OUTPUT_HANDLER_CLEANABLE', 'BOP_OUTPUT_HANDLER_CLEANABLE', 16],
-			['PHP_OUTPUT_HANDLER_FLUSHABLE', 'BOP_OUTPUT_HANDLER_FLUSHABLE', 32],
-			['PHP_OUTPUT_HANDLER_REMOVABLE', 'BOP_OUTPUT_HANDLER_REMOVABLE', 64],
-			['PHP_OUTPUT_HANDLER_STDFLAGS', 'BOP_OUTPUT_HANDLER_STDFLAGS', 112]
-		];
-		if (rootGlobalNs.constants) {
-			bopConstantMappings.forEach(function(entry) {
-				const oldName = entry[0];
-				const newName = entry[1];
-				const overrideVal = entry[2];
-				let targetVal = overrideVal;
-				if (
-					overrideVal === undefined &&
-					Object.prototype.hasOwnProperty.call(rootGlobalNs.constants, oldName)
-				) {
-					const desc = rootGlobalNs.constants[oldName];
-					if (desc && desc.value && typeof desc.value.getNative === 'function') {
-						targetVal = desc.value.getNative();
-					} else if (desc && typeof desc.getNative === 'function') {
-						targetVal = desc.getNative();
-					}
-				} else if (
-					(oldName === 'PHP_INT_MAX' || oldName.indexOf('PHP_OUTPUT_HANDLER_') === 0) &&
-					Object.prototype.hasOwnProperty.call(rootGlobalNs.constants, oldName)
-				) {
-					const desc = rootGlobalNs.constants[oldName];
-					if (desc && desc.value && typeof desc.value.getNative === 'function') {
-						targetVal = desc.value.getNative();
-					}
-				}
-				if (!Object.prototype.hasOwnProperty.call(rootGlobalNs.constants, newName)) {
-					bop.environment.defineConstant(newName, targetVal);
-				}
-				if (Object.prototype.hasOwnProperty.call(rootGlobalNs.constants, oldName)) {
-					delete rootGlobalNs.constants[oldName];
-				}
-			});
-		}
-
-		// Snapshot built-in functions before loading user BOP libraries, then expose get_defined_functions()
-		const internalFunctionNames = new Set(
-			Object.keys(bop.environment.getState().getGlobalNamespace().functions)
-		);
-		internalFunctionNames.add('get_defined_functions');
-
-		bop.environment.defineCoercingFunction('get_defined_functions', function() {
-			const rootNs = bop.environment.getState().getGlobalNamespace();
-			const internal = [];
-			const user = [];
-
-			function collectFunctions(nsNode, prefix) {
-				const fns = nsNode.functions || {};
-				Object.keys(fns).forEach(function(name) {
-					const fullName = prefix ? prefix + '\\' + name : name;
-					if (!prefix && internalFunctionNames.has(name)) {
-						internal.push(fullName);
-					} else {
-						user.push(fullName);
-					}
-				});
-				const children = nsNode.children || {};
-				Object.keys(children).forEach(function(childName) {
-					const nextPrefix = prefix ? prefix + '\\' + childName : childName;
-					collectFunctions(children[childName], nextPrefix);
-				});
-			}
-
-			collectFunctions(rootNs, '');
-			internal.sort();
-			user.sort();
-			return {
-				internal: internal,
-				user: user
-			};
-		});
 	}
 
 	globalScope.preprocessBopTags = preprocessBopTags;

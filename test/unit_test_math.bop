@@ -21,7 +21,7 @@ return call_user_func(function($verbose) {
 		['pi()/deg2rad/rad2deg/trig', abs(sin(deg2rad(90)) - 1) < 1e-9 && abs(cos(pi()) + 1) < 1e-9 && abs(rad2deg(atan2(1, 1)) - 45) < 1e-9, true],
 		['hyperbolic sinh/cosh/tanh', abs(cosh(0) - 1) < 1e-9 && abs(sinh(0)) < 1e-9 && abs(tanh(0)) < 1e-9, true],
 		['is_nan / is_finite / is_infinite', is_nan(NAN) && is_infinite(INF) && is_finite(42.5) && !is_finite(INF), true],
-		['srand deterministic rand/mt_rand', $r1 === $r1b && $r2 === $r2b && $r1 >= 1 && $r1 <= 100, true],
+		['srand deterministic rand', $r1 === $r1b && $r2 === $r2b && $r1 >= 1 && $r1 <= 100, true],
 		['bindec/decbin/octdec/decoct/hexdec/dechex/base_convert', bindec('101010') === 42 && decbin(42) === '101010' && octdec('755') === 493 && decoct(493) === '755' && hexdec('ff') === 255 && dechex(255) === 'ff' && base_convert('ff', 16, 2) === '11111111', true],
 	];
 

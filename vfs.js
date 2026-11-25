@@ -651,22 +651,6 @@
 			};
 		});
 
-		bop.environment.defineFunction('fputs', function(internals) {
-			internals.disableAutoCoercion();
-			return function(resRef, dataRef, lenRef) {
-				const st = getStream(resRef);
-				if (!st || !dataRef) return vf.createBoolean(false);
-				let str = String(dataRef.getValue().getNative() ?? '');
-				if (lenRef) {
-					const len = lenRef.getValue().getNative();
-					if (len !== null && len !== undefined) {
-						str = str.substring(0, Math.max(0, Math.trunc(Number(len))));
-					}
-				}
-				return st.write(str);
-			};
-		});
-
 		bop.environment.defineFunction('fseek', function(internals) {
 			internals.disableAutoCoercion();
 			return function(resRef, offsetRef, whenceRef) {

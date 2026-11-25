@@ -1,5 +1,5 @@
 {
-  "name": "Interactive PHP Shell (Uniter)",
-  "description": "Client-side, browser-hosted interactive PHP REPL powered by Uniter, jQuery Terminal, and PrismJS.",
+  "name": "BOP",
+  "description": "Client-side, browser-hosted interactive bop language interpreter, jQuery Terminal, and PrismJS.",
   "requestFramePermissions": []
 }

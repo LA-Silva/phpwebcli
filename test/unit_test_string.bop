@@ -1,5 +1,29 @@
 <?bop
 return call_user_func(function($verbose) {
+	ob_start();
+	$bannerPrinted = banner('bop!');
+	$bannerEchoed = ob_get_clean();
+	$bannerLower = banner('hello world', true);
+	$bannerUpper = banner('HELLO WORLD', true);
+	$bannerBop = banner('BOP', true);
+	$bopRows = explode("\n", rtrim($bannerBop, "\n"));
+	$bopRowWidthsOk = count($bopRows) === 6;
+	$bopPureAsciiOk = true;
+	foreach ($bopRows as $bRow) {
+		if (len($bRow) !== 20) {
+			$bopRowWidthsOk = false;
+		}
+		$rowLen = len($bRow);
+		for ($bi = 0; $bi < $rowLen; $bi++) {
+			$bCh = substr($bRow, $bi, 1);
+			if ($bCh !== '#' && $bCh !== ' ') {
+				$bopPureAsciiOk = false;
+			}
+		}
+	}
+	$bannerMulti = banner("AB\nCD", true);
+	$multiLines = explode("\n", rtrim($bannerMulti, "\n"));
+
 	$cases = [
 		['len("hello")', len('hello'), 5],
 		['len("")', len(''), 0],
@@ -54,6 +78,11 @@ return call_user_func(function($verbose) {
 		['split("/[,;]\\s*/", "red, green;blue") delimited regex', split('/[,;]\s*/', 'red, green;blue'), ['red', 'green', 'blue']],
 		['split("/([+-])/", "10+20-30") capturing groups', split('/([+-])/', '10+20-30'), ['10', '+', '20', '-', '30']],
 		['split("", "abc") splits characters', split('', 'abc'), ['a', 'b', 'c']],
+		['banner() outputs ASCII 6x6 art and returns true', $bannerPrinted === true && $bannerEchoed === banner('BOP!', true), true],
+		['banner() folds lowercase to uppercase 6x6', $bannerLower === $bannerUpper && len($bannerLower) > 0, true],
+		['banner("BOP", true) is 6 rows of 20 chars pure ASCII', $bopRowWidthsOk && $bopPureAsciiOk, true],
+		['banner("AB\\nCD", true) renders 2x6 rows with blank separator', count($multiLines) === 13 && $multiLines[6] === '', true],
+		['banner("") returns empty / no-op', banner('', true) === '' && banner('') === true, true],
 	];
 
 	$passed = 0;

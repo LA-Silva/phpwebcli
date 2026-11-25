@@ -18,9 +18,9 @@ return call_user_func(function($verbose) {
 	$curAfterLocateRow = cursor_row();
 	$curAfterLocateCol = cursor_col();
 
-	gotoxy(10, 4);
+	locate(4, 10);
 	echo "XY";
-	$row4AfterGotoxy = substr(screen_line(4), 9, 2);
+	$row4AfterLocate = substr(screen_line(4), 9, 2);
 
 	// Test ANSI cursor move inside active screen mode
 	echo "\x1b[2;4HOK";
@@ -41,7 +41,7 @@ return call_user_func(function($verbose) {
 		['screen_lines() matches $term->rows()', $lines, $termLines],
 		['screen_mode(true) activates framebuffer', $modeAfterEnable, true],
 		['locate(3, 5) + echo writes at row 3 col 5 and advances cursor', $row3AfterLocate === 'HI' && $curAfterLocateRow === 3 && $curAfterLocateCol === 7, true],
-		['gotoxy(10, 4) + echo writes at row 4 col 10', $row4AfterGotoxy, 'XY'],
+		['locate(4, 10) + echo writes at row 4 col 10', $row4AfterLocate, 'XY'],
 		['ANSI CSI ESC[2;4H moves cursor and echo writes OK', $row2AfterAnsi, 'OK'],
 		['cls() clears screen buffer and resets cursor to (1,1)', $row3AfterCls === '' && $curAfterClsRow === 1 && $curAfterClsCol === 1, true],
 		['screen_mode(false) restores REPL mode', $modeRestored, $prevMode],
