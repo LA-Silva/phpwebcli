@@ -82,14 +82,14 @@
 ## Implemented Runtime, Standard Library & Tools
 
 ### Browser Runtime & Interactive Shell
-- [x] Standalone pure-JS BOP lexer, parser & async interpreter (`bop_engine.js`) replacing Uniter
-- [x] Modular JS runtime architecture (`bop_engine.js`, `vfs.js`, `minisql.js`, `screen_buffer.js`, `bop_bridge.js`)
+- [x] Standalone pure-JS BOP lexer, parser & async interpreter (`lib/bop_engine.js`) replacing Uniter
+- [x] Modular JS runtime architecture (`lib/bop_engine.js`, `lib/vfs.js`, `lib/minisql.js`, `lib/screen_buffer.js`, `lib/adlib.js`, `lib/bop_bridge.js`)
 - [x] Serialized interactive terminal input queue (`$io->read()`, `$io->readline()`, `myinput($prompt, $secret)`)
 - [x] Terminal masking helpers (`$maskaan()`, `$maskuit()`) and exposed globals (`$term`, `$jQuery`, `$bridge`, `$meta`, `$includeBop()`)
 - [x] BOP-only engine branding (`bopversion()`, `bop_uname()`, `BOP_*` constants, `bop >` prompt, `.bop` extensions, `bopwebcli_vfs_v1`)
 - [x] `get_defined_functions()` accurately distinguishing `internal` vs `user` functions
 
-### Strings & Formatting (`lib/strings.bop`, `bop_bridge.js`)
+### Strings & Formatting (`lib/strings.bop`, `lib/bop_bridge.js`)
 - [x] BASIC/Perl-style string helpers: `len()`, `left()`, `right()`, `mid()`, `instr()`, `lower()`, `upper()`, `chr()`, `val()`, `ltrim()`, `rtrim()`, `strcmp()`, `stricmp()`, `space()`, `split()`
 - [x] Unix-style horizontal 6x6 uppercase pure-ASCII art command: `banner($text, $return = false)`
 - [x] Upgraded `sprintf()` with `%f`/`%F`, `%e`/`%E`, `%g`/`%G`, `%x`/`%X`, `%o`, `%b`, `%c`, `%u`, padding, precision, and positional `%1$s` arguments
@@ -100,7 +100,7 @@
 ### Cron Scheduling (`lib/cron.bop`)
 - [x] Browser cron job manager (`cron()`) supporting 5-field schedules, `@hourly`/`@daily`/`@weekly`/`@monthly`/`@yearly` aliases, overrides, and deletions
 
-### Virtual Filesystem & BOP Streams (`lib/files.bop`, `vfs.js`)
+### Virtual Filesystem & BOP Streams (`lib/files.bop`, `lib/vfs.js`)
 - [x] Persistent `localStorage` VFS with `file_get_contents()`, `file_put_contents()`, `file()`, `unlink()`, `rename()`, `copy()`, `mkdir()`, `rmdir()`, `is_dir()`, `filesize()`, `filemtime()`, `touch()`, `scandir()`, `glob()`, `basename()`, `realpath()`
 - [x] Scriptable bash-style BOP helpers: `pwd()`, `cd($dir = '/')`, `ls($path = null, $long = false)`, `cat($file, $return = false)`
 - [x] Low-level BOP stream resources: `fopen()`, `fread()`, `fwrite()`, `fgets()`, `fgetc()`, `fseek()`, `ftell()`, `rewind()`, `feof()`, `ftruncate()`, `fflush()`, `fpassthru()`, `fclose()`
@@ -117,16 +117,20 @@
 - [x] Inspection, math & sets: `array_reverse()`, `array_flip()`, `array_change_key_case()`, `array_sum()`, `array_product()`, `array_reduce()`, `array_walk()`, `array_count_values()`, `array_intersect()`, `array_intersect_key()`, `array_diff_key()`, `array_key_first()`, `array_key_last()`
 - [x] Sorting & shuffling: `sort()`, `rsort()`, `arsort()`, `ksort()`, `usort()`, `uasort()`, `uksort()`, `shuffle()`, `array_rand()`, plus `CASE_*` and `SORT_*` constants
 
-### Screen, Terminal & Pixel Framebuffer Control (`lib/screen.bop`, `screen_buffer.js`, `screen_demo.bop`)
+### Screen, Terminal & Pixel Framebuffer Control (`lib/screen.bop`, `lib/screen_buffer.js`, `demo/screen_demo.bop`)
 - [x] Screen dimension wrappers: `screen_columns()`, `screen_lines()`, `screen_width()`, `screen_height()`
 - [x] Text & hardware-style pixel framebuffer overlay (`screen('320x200')`, `screen(640, 400)`): `screen()`, `screen_mode()`, `cls()`, `locate()`, `cursor_row()`, `cursor_col()`, `screen_line()`, `pencolor()`, `pixel()`, `line()`, `inkey()`, `keydown()`, `8x8`/`8x16` bitmap text rendering, blinking cursor, VT100 deferred wrap, `Escape`/exit button, and ANSI CSI escapes (`ESC[H`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`)
-- [x] Interactive demo scripts (`screen_demo.bop` / `screen_demo()`, `pixel_demo.bop` / `pixel_demo()`, `invaders_demo.bop` / `invaders_demo()`, `pacman_demo.bop` / `pacman_demo()`)
+- [x] Interactive demo scripts (`demo/screen_demo.bop` / `screen_demo()`, `demo/pixel_demo.bop` / `pixel_demo()`, `demo/invaders_demo.bop` / `invaders_demo()`, `demo/pacman_demo.bop` / `pacman_demo()`, `demo/tetris_demo.bop` / `tetris_demo()`, `demo/gridrunner_demo.bop` / `gridrunner_demo()`, `demo/sound_demo.bop` / `sound_demo()`)
 
-### SQLite3 & PDO Databases (`lib/sqlite.bop`, `minisql.js`)
+### AdLib FM Sound Synthesizer (`lib/sound.bop`, `lib/adlib.js`)
+- [x] 9-channel Web Audio 2-operator OPL2-style FM synth with presets (`lead`, `bass`, `brass`, `organ`, `bell`, `strings`, `laser`, `boom`, `chomp`, `coin`, `beep`, `sine`) and custom FM operator patches
+- [x] BASIC-style audio commands: `sound()`, `voice()`, `play()` (MML parser), `note_on()`, `note_off()`, `sound_stop()`, `volume()`
+
+### SQLite3 & PDO Databases (`lib/sqlite.bop`, `lib/minisql.js`)
 - [x] Zero-WASM pure-JS SQL engine with `:memory:` and persistent `localStorage` VFS database files
 - [x] `SQLite3`, `SQLite3Stmt`, `SQLite3Result`, `PDO`, `PDOStatement`, and `PDOException` classes with prepared statements, `JOIN`, `GROUP BY`, aggregates, transactions (`BEGIN`/`COMMIT`/`ROLLBACK`), `sqlite_master`, and `SQLITE3_*` / `PDO::*` constants
 
 ### Documentation, Examples & Standalone Unit Tests
-- [x] Interactive feature showcase in `example.bop`
+- [x] Interactive feature showcase in `demo/example.bop`
 - [x] Complete grouped command reference with explanations and examples in `LANGUAGE.md`
-- [x] Standalone memory-clean unit test scripts (`test/unit_test_string.bop`, `test/unit_test_date.bop`, `test/unit_test_cron.bop`, `test/unit_test_file.bop`, `test/unit_test_math.bop`, `test/unit_test_array.bop`, `test/unit_test_sqlite.bop`, `test/unit_test_screen.bop`)
+- [x] Standalone memory-clean unit test scripts (`test/unit_test_string.bop`, `test/unit_test_date.bop`, `test/unit_test_cron.bop`, `test/unit_test_file.bop`, `test/unit_test_math.bop`, `test/unit_test_array.bop`, `test/unit_test_sqlite.bop`, `test/unit_test_screen.bop`, `test/unit_test_sound.bop`)

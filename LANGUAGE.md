@@ -34,7 +34,7 @@ Standard BOP syntax supported in the `bop >` REPL and `.bop` script files.
 | `<?= $expr ?>` | Short echo tag for outputting a single expression. | `<?= "Hi " . $name ?>` |
 | `echo $expr` | Outputs one or more strings or values to the terminal or active screen buffer. | `echo "Hello, world!\n";` |
 | `print $expr` | Outputs a single string or value and returns `1`. | `print "Done\n";` |
-| `include 'file.bop'` | Loads and executes a BOP file from VFS or server; emits a warning if missing and continues. | `include 'screen_demo.bop';` |
+| `include 'file.bop'` | Loads and executes a BOP file from VFS or server; emits a warning if missing and continues. | `include 'demo/screen_demo.bop';` |
 | `include_once 'file.bop'` | Same as `include`, but loads the file only once per session. | `include_once 'test/unit_test_math.bop';` |
 | `require 'file.bop'` | Loads and executes a BOP file; throws a fatal error if missing. | `require 'lib/strings.bop';` |
 | `require_once 'file.bop'` | Same as `require`, but loads the file only once per session. | `require_once 'lib/dates.bop';` |
@@ -54,7 +54,7 @@ Standard BOP syntax supported in the `bop >` REPL and `.bop` script files.
 
 ## 2. Strings & Text Formatting
 
-Includes core built-ins, `bop_bridge.js` upgrades (`sprintf`), and BASIC/Perl-style helpers in `lib/strings.bop`.
+Includes core built-ins, `lib/bop_bridge.js` upgrades (`sprintf`), and BASIC/Perl-style helpers in `lib/strings.bop`.
 
 ### Length, Substrings & Trimming
 
@@ -286,7 +286,7 @@ Combines core time functions with Oracle-compatible date/number helpers in `lib/
 
 ## 6. Files, Directories & Streams (`localStorage` VFS)
 
-Persistent browser filesystem backed by `localStorage` (`vfs.js` + `lib/files.bop` + core checks).
+Persistent browser filesystem backed by `localStorage` (`lib/vfs.js` + `lib/files.bop` + core checks).
 
 ### High-Level File & Path Helpers
 
@@ -343,7 +343,7 @@ Persistent browser filesystem backed by `localStorage` (`vfs.js` + `lib/files.bo
 
 ## 7. Screen, Terminal & Pixel Framebuffer Control
 
-Provides terminal geometry queries, a 2D character grid (`text`), and unified hardware-style pixel framebuffers (`320x200` and `640x400`) backed by a flat 32-bit RGBA VRAM array (`lib/screen.bop` + `screen_buffer.js`). Supports `pixel()`, Bresenham `line()`, `pencolor()`, `locate()`, `cls()`, embedded `8x8`/`8x16` bitmap text rendering, and ANSI escape codes (`ESC[H`, `ESC[row;colH`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`). Press **ESC** or call `screen(0)` / `screen_mode(false)` to return to the normal REPL.
+Provides terminal geometry queries, a 2D character grid (`text`), and unified hardware-style pixel framebuffers (`320x200` and `640x400`) backed by a flat 32-bit RGBA VRAM array (`lib/screen.bop` + `lib/screen_buffer.js`). Supports `pixel()`, Bresenham `line()`, `pencolor()`, `locate()`, `cls()`, embedded `8x8`/`8x16` bitmap text rendering, and ANSI escape codes (`ESC[H`, `ESC[row;colH`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`). Press **ESC** or call `screen(0)` / `screen_mode(false)` to return to the normal REPL.
 
 | Command | Description | Example |
 |---|---|---|
@@ -364,11 +364,25 @@ Provides terminal geometry queries, a 2D character grid (`text`), and unified ha
 | `inkey()` | Non-blocking read of the next queued key press while screen mode is active, or `""` if none. | `$k = inkey();` |
 | `keydown($key = null)` | Returns `true` if `$key` (`"ArrowLeft"`, `"left"`, `"space"`, `"a"`, etc.) is held down, or array of held keys if `null`. | `if (keydown("left")) $x--;` |
 
+### AdLib-Style FM Sound Synthesizer (`lib/sound.bop` + `lib/adlib.js`)
+
+9-channel Web Audio 2-operator FM synthesizer supporting OPL2-style waveforms (`halfsine`, `abssine`, `pulsesine`, `sine`, `square`, `triangle`, `sawtooth`), FM presets (`lead`, `bass`, `brass`, `organ`, `bell`, `strings`, `laser`, `boom`, `chomp`, `coin`, `beep`, `sine`), custom patch arrays, and BASIC MML music strings.
+
+| Command | Description | Example |
+|---|---|---|
+| `sound($freq, $duration_ms = 200, $channel = 0, $wait = false)` | Plays a tone at `$freq` (Hz or note like `"A4"`) for `$duration_ms` on channel `0..8`. Non-blocking by default for game loops. | `sound(880, 120);` or `sound("C5", 200, 1, true);` |
+| `voice($channel = null, $preset = null)` | Lists presets (`null`), reads channel voice (`$preset === null`), or assigns a preset name or custom FM patch array to `$channel`. | `voice(0, "brass");` |
+| `play($mml, $channel = 0, $wait = true)` | Plays BASIC Music Macro Language (`T` tempo, `O` octave, `</>` shift, `L` length, `A-G` notes with `#/-`, `R/P` rests, `MN/ML/MS`). | `play("T140 O4 L8 C E G > C");` |
+| `note_on($channel = 0, $note_or_freq = 440, $velocity = 100)` | Starts a sustained FM note on `$channel` (`0..8`) until `note_off()` or `sound_stop()`. | `note_on(0, "C4");` |
+| `note_off($channel = null)` | Releases active note on `$channel` (or all channels if `null`). | `note_off(0);` |
+| `sound_stop()` | Immediately silences all active and scheduled sound channels. | `sound_stop();` |
+| `volume($level = null)` | Gets (`null`) or sets master output volume (`0..100`). | `volume(75);` |
+
 ---
 
 ## 8. SQLite3 & PDO Databases (Zero-WASM MiniSQL)
 
-In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine implemented in pure JavaScript (`minisql.js`) and exposed via BOP `SQLite3` and `PDO` classes (`lib/sqlite.bop`). Supports `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE`, `INSERT`, `SELECT` (`JOIN`, `WHERE`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`, aggregates `COUNT`/`SUM`/`AVG`/`MIN`/`MAX`), `UPDATE`, `DELETE`, `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`, and `sqlite_master`.
+In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine implemented in pure JavaScript (`lib/minisql.js`) and exposed via BOP `SQLite3` and `PDO` classes (`lib/sqlite.bop`). Supports `CREATE TABLE`, `DROP TABLE`, `ALTER TABLE`, `INSERT`, `SELECT` (`JOIN`, `WHERE`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`, `GROUP BY`, `HAVING`, `ORDER BY`, `LIMIT`, aggregates `COUNT`/`SUM`/`AVG`/`MIN`/`MAX`), `UPDATE`, `DELETE`, `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`, and `sqlite_master`.
 
 ### `SQLite3` Class
 
@@ -419,7 +433,7 @@ In-memory (`:memory:`) or `localStorage`-VFS-persisted relational SQL engine imp
 
 ## 9. Cron Scheduling
 
-Browser-hosted minute-level BOP job scheduler (`lib/cron.bop` + `bop_bridge.js`).
+Browser-hosted minute-level BOP job scheduler (`lib/cron.bop` + `lib/bop_bridge.js`).
 
 | Command | Description | Example |
 |---|---|---|
@@ -441,7 +455,7 @@ Special BOP variables exposed by `index.html` and `lib/stdlib.bop` to connect BO
 | `$maskaan($arg)` / `$maskuit($arg)` | Enables (`*`) or disables jQuery Terminal input masking (`stdlib` helpers). | `$maskaan(true);` |
 | `$term` | Exposed jQuery Terminal instance (`cols()`, `rows()`, `echo()`, `clear()`, `geometry()`, etc.). | `echo $term->cols() . "x" . $term->rows();` |
 | `$jQuery` | Exposed browser jQuery (`$`) function for DOM querying and CSS styling. | `$jQuery("body")->css("color", "#0f0");` |
-| `$includeBop($url)` | Fetches a BOP file over HTTP, preprocesses `<?bop` tags, and executes it in the active engine. | `$includeBop("screen_demo.bop");` |
+| `$includeBop($url)` | Fetches a BOP file over HTTP, preprocesses `<?bop` tags, and executes it in the active engine. | `$includeBop("demo/screen_demo.bop");` |
 | `$bridge` | Underlying JS runtime bridge (`version`, `getStyle`, `setText`, `fetchText`, `cronMatches`, VFS, SQL, Screen helpers). | `$bridge->setText("title", "My BOP App");` |
 | `$meta` | Runtime metadata object (`engine => 'BOP'`, `environment => 'browser'`). | `echo $meta->engine;` |
 
@@ -449,7 +463,7 @@ Special BOP variables exposed by `index.html` and `lib/stdlib.bop` to connect BO
 
 ## 11. Types, Introspection, Reflection & Callables
 
-Core runtime functions plus the enhanced `get_defined_functions()` registered in `bop_bridge.js`.
+Core runtime functions plus the enhanced `get_defined_functions()` registered in `lib/bop_bridge.js`.
 
 ### Type Checking & Debugging
 
@@ -531,11 +545,11 @@ Capture, inspect, discard, or flush stdout inside BOP scripts.
 
 ## 14. Constants Reference
 
-Predefined constants registered across `vfs.js`, `bop_bridge.js`, `lib/math.bop`, `lib/arrays.bop`, `lib/sqlite.bop`, and runtime core:
+Predefined constants registered across `lib/vfs.js`, `lib/bop_bridge.js`, `lib/math.bop`, `lib/arrays.bop`, `lib/sqlite.bop`, and runtime core:
 
-- **BOP Runtime & Output (`bop_bridge.js`):**
+- **BOP Runtime & Output (`lib/bop_bridge.js`):**
   `BOP_VERSION`, `BOP_VERSION_ID`, `BOP_OS` (`'Browser'`), `BOP_SAPI` (`'bop-cli'`), `BOP_INT_MAX`, `BOP_OUTPUT_HANDLER_CLEANABLE`, `BOP_OUTPUT_HANDLER_FLUSHABLE`, `BOP_OUTPUT_HANDLER_REMOVABLE`, `BOP_OUTPUT_HANDLER_STDFLAGS`
-- **Files & Streams (`vfs.js`):**
+- **Files & Streams (`lib/vfs.js`):**
   `SEEK_SET` (`0`), `SEEK_CUR` (`1`), `SEEK_END` (`2`), `FILE_APPEND` (`8`), `FILE_IGNORE_NEW_LINES` (`2`), `FILE_SKIP_EMPTY_LINES` (`4`), `LOCK_EX` (`2`), `SCANDIR_SORT_ASCENDING` (`0`), `SCANDIR_SORT_DESCENDING` (`1`), `SCANDIR_SORT_NONE` (`2`), `DIRECTORY_SEPARATOR` (`'/'`), `BOP_EOL` (`"\n"`)
 - **Arrays & Sorting (`lib/arrays.bop` / core):**
   `CASE_LOWER` (`0`), `CASE_UPPER` (`1`), `SORT_REGULAR`, `SORT_NUMERIC` (`1`), `SORT_STRING`, `SORT_NATURAL`, `SORT_ASC` (`4`), `SORT_DESC` (`3`)
@@ -554,11 +568,14 @@ Run these scripts directly from the `bop >` prompt with `include '...'` (or `$in
 
 | Script | Purpose | Example |
 |---|---|---|
-| `example.bop` | Comprehensive walkthrough of every subsystem and all 8 test suites. | `include 'example.bop';` |
-| `screen_demo.bop` | Interactive 2D framebuffer demo using `screen_mode()`, `cls()`, `locate()`, ANSI escapes, and `screen_line()`. Call `screen_demo();` after including. | `include 'screen_demo.bop'; screen_demo();` |
-| `pixel_demo.bop` | Pixel graphics demo using `screen('320x200')` / `screen('640x400')`, `pencolor()`, `pixel()`, `line()`, and VRAM bitmap text. | `$includeBop('pixel_demo.bop');` |
-| `invaders_demo.bop` | Playable Space Invaders arcade game using `screen('320x200')`, `pixel()`, `line()`, `inkey()`, `keydown()`, and `usleep()`. | `$includeBop('invaders_demo.bop');` |
-| `pacman_demo.bop` | Playable Pac-Man arcade game with maze, pellets, power pellets, 4 AI ghosts, and warp tunnel in `320x200` VRAM. | `$includeBop('pacman_demo.bop');` |
+| `demo/example.bop` | Comprehensive walkthrough of every subsystem and all 8 test suites. | `include 'demo/example.bop';` |
+| `demo/screen_demo.bop` | Interactive 2D framebuffer demo using `screen_mode()`, `cls()`, `locate()`, ANSI escapes, and `screen_line()`. Call `screen_demo();` after including. | `include 'demo/screen_demo.bop'; screen_demo();` |
+| `demo/pixel_demo.bop` | Pixel graphics demo using `screen('320x200')` / `screen('640x400')`, `pencolor()`, `pixel()`, `line()`, and VRAM bitmap text. | `$includeBop('demo/pixel_demo.bop');` |
+| `demo/invaders_demo.bop` | Playable Space Invaders arcade game using `screen('320x200')`, `pixel()`, `line()`, `inkey()`, `keydown()`, and `usleep()`. | `$includeBop('demo/invaders_demo.bop');` |
+| `demo/pacman_demo.bop` | Playable Pac-Man arcade game with maze, pellets, power pellets, 4 AI ghosts, and warp tunnel in `320x200` VRAM. | `$includeBop('demo/pacman_demo.bop');` |
+| `demo/tetris_demo.bop` | Playable Tetris arcade game with 7-bag pieces, wall kicks, ghost piece, bevel tiles, and Korobeiniki FM music/SFX in `320x200` VRAM. | `$includeBop('demo/tetris_demo.bop');` |
+| `demo/gridrunner_demo.bop` | Llamasoft Gridrunner-inspired arcade game with neon coordinate grid, splitting droids, pods, X/Y zappers, and AdLib FM SFX. | `$includeBop('demo/gridrunner_demo.bop');` |
+| `demo/sound_demo.bop` | AdLib-style 9-channel FM synthesizer demo featuring arcade SFX, polyphonic chords, MML playback, and custom FM patches. | `$includeBop('demo/sound_demo.bop');` |
 | `test/unit_test_string.bop` | Runs 58 string, `banner()`, and Perl `split()` assertions (`$unit_test_verbose = true;` for detailed output). | `include 'test/unit_test_string.bop';` |
 | `test/unit_test_date.bop` | Runs 16 Oracle date/number formatting and conversion assertions. | `include 'test/unit_test_date.bop';` |
 | `test/unit_test_cron.bop` | Runs 11 cron registration, override, deletion, and matcher assertions. | `include 'test/unit_test_cron.bop';` |
@@ -567,3 +584,4 @@ Run these scripts directly from the `bop >` prompt with `include '...'` (or `$in
 | `test/unit_test_array.bop` | Runs 17 array transform, set, reduction, and sort assertions. | `include 'test/unit_test_array.bop';` |
 | `test/unit_test_sqlite.bop` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'test/unit_test_sqlite.bop';` |
 | `test/unit_test_screen.bop` | Runs 20 screen geometry, text framebuffer, `320x200`/`640x400` pixel VRAM, `pencolor()`, `pixel()`, `line()`, `inkey()`, `keydown()`, and ANSI assertions. | `include 'test/unit_test_screen.bop';` |
+| `test/unit_test_sound.bop` | Runs 8 AdLib FM synthesizer assertions (`sound()`, `voice()`, `play()`, `note_on()`, `note_off()`, `sound_stop()`, `volume()`, MML parser). | `include 'test/unit_test_sound.bop';` |

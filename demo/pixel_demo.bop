@@ -7,8 +7,8 @@
  *   cls(), pencolor(), pixel(), line(), locate(), and bitmap text in VRAM.
  *
  * How to run from the browser BOP CLI (bop > prompt):
- *   $includeBop('pixel_demo.bop');
- *   include 'pixel_demo.bop';
+ *   $includeBop('demo/pixel_demo.bop');
+ *   include 'demo/pixel_demo.bop';
  *
  * Try high-res mode after loading:
  *   pixel_demo('640x400');

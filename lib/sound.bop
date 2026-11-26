@@ -1,0 +1,53 @@
+<?bop
+
+if (!function_exists('sound')) {
+	function sound($freq, $duration_ms = 200, $channel = 0, $wait = false) {
+		global $bridge;
+		return (bool) $bridge->soundPlayTone($freq, (int) $duration_ms, (int) $channel, (bool) $wait);
+	}
+}
+
+if (!function_exists('voice')) {
+	function voice($channel = null, $preset = null) {
+		global $bridge;
+		return $bridge->soundVoice($channel, $preset);
+	}
+}
+
+if (!function_exists('play')) {
+	function play($mml, $channel = 0, $wait = true) {
+		global $bridge;
+		return (bool) $bridge->soundPlayMml((string) $mml, (int) $channel, (bool) $wait);
+	}
+}
+
+if (!function_exists('note_on')) {
+	function note_on($channel = 0, $note_or_freq = 440, $velocity = 100) {
+		global $bridge;
+		return (bool) $bridge->soundNoteOn((int) $channel, $note_or_freq, (int) $velocity);
+	}
+}
+
+if (!function_exists('note_off')) {
+	function note_off($channel = null) {
+		global $bridge;
+		return (bool) $bridge->soundNoteOff($channel);
+	}
+}
+
+if (!function_exists('sound_stop')) {
+	function sound_stop() {
+		global $bridge;
+		return (bool) $bridge->soundStop();
+	}
+}
+
+if (!function_exists('volume')) {
+	function volume($level = null) {
+		global $bridge;
+		if ($level === null) {
+			return (int) $bridge->soundVolume(null);
+		}
+		return (bool) $bridge->soundVolume((int) $level);
+	}
+}

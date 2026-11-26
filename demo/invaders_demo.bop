@@ -7,8 +7,8 @@
  *   keydown(), inkey(), and usleep().
  *
  * How to run from the browser BOP CLI (bop > prompt):
- *   $includeBop('invaders_demo.bop');
- *   include 'invaders_demo.bop';
+ *   $includeBop('demo/invaders_demo.bop');
+ *   include 'demo/invaders_demo.bop';
  *
  * Controls:
  *   ArrowLeft / A   Move cannon left
@@ -117,6 +117,15 @@ if (!function_exists('invaders_demo')) {
 		$statusText = '';
 		$running = true;
 
+		// AdLib FM sound channels (0: march bass, 1: laser, 2: alien hit, 3: explosion, 4: jingles)
+		$marchFreqs = [98, 87, 82, 73];
+		$marchIdx = 0;
+		voice(0, ['modWave' => 'sine', 'carWave' => 'square', 'modMult' => 1, 'carMult' => 1, 'modIndex' => 1.5, 'modDecay' => 0.08, 'attack' => 0.004, 'decay' => 0.08, 'sustain' => 0.15, 'release' => 0.04, 'slide' => 1, 'noise' => 0]);
+		voice(1, 'laser');
+		voice(2, ['modWave' => 'square', 'carWave' => 'triangle', 'modMult' => 2.5, 'carMult' => 1, 'modIndex' => 3.5, 'modDecay' => 0.1, 'attack' => 0.003, 'decay' => 0.1, 'sustain' => 0.08, 'release' => 0.05, 'slide' => 0.32, 'noise' => 0.15]);
+		voice(3, 'boom');
+		voice(4, 'lead');
+
 		while ($running && screen_mode()) {
 			// Initialize wave of 3 rows x 8 invaders + 3 bunkers
 			$invaders = [];
@@ -170,6 +179,7 @@ if (!function_exists('invaders_demo')) {
 					if ($k === ' ' && $fireCooldown <= 0 && count($bullets) < 2) {
 						$bullets[] = ['x' => $shipX, 'y' => $shipY - 7];
 						$fireCooldown = 6;
+						sound(1150, 95, 1);
 					}
 				}
 				if (!$running) {
@@ -187,6 +197,7 @@ if (!function_exists('invaders_demo')) {
 				if (keydown('space') && $fireCooldown <= 0 && count($bullets) < 2) {
 					$bullets[] = ['x' => $shipX, 'y' => $shipY - 7];
 					$fireCooldown = 7;
+					sound(1150, 95, 1);
 				}
 				if ($fireCooldown > 0) {
 					$fireCooldown--;
@@ -208,6 +219,7 @@ if (!function_exists('invaders_demo')) {
 							&& $b['y'] >= $bunkers[$bi]['y'] && $b['y'] <= $bunkers[$bi]['y'] + 6) {
 							$bunkers[$bi]['hp']--;
 							$hit = true;
+							sound(180, 45, 3);
 							break;
 						}
 					}
@@ -221,6 +233,7 @@ if (!function_exists('invaders_demo')) {
 								$invaders[$ii]['alive'] = false;
 								$score += $invaders[$ii]['pts'];
 								$hit = true;
+								sound(420, 110, 2);
 								break;
 							}
 						}
@@ -245,6 +258,7 @@ if (!function_exists('invaders_demo')) {
 				if ($aliveCount === 0) {
 					$wave++;
 					$waveActive = false;
+					play("T190 O5 L16 C E G > C4", 4, false);
 					continue;
 				}
 
@@ -253,6 +267,8 @@ if (!function_exists('invaders_demo')) {
 				if ($stepTick >= $stepInterval) {
 					$stepTick = 0;
 					$animFrame = 1 - $animFrame;
+					sound($marchFreqs[$marchIdx], 80, 0);
+					$marchIdx = ($marchIdx + 1) % 4;
 					$hitEdge = false;
 					for ($ii = 0; $ii < count($invaders); $ii++) {
 						if (!$invaders[$ii]['alive']) continue;
@@ -304,6 +320,7 @@ if (!function_exists('invaders_demo')) {
 							&& $bm['y'] >= $bunkers[$bi]['y'] && $bm['y'] <= $bunkers[$bi]['y'] + 6) {
 							$bunkers[$bi]['hp']--;
 							$hit = true;
+							sound(150, 50, 3);
 							break;
 						}
 					}
@@ -311,6 +328,7 @@ if (!function_exists('invaders_demo')) {
 						$lives--;
 						$hit = true;
 						$shipX = 160;
+						sound(115, 360, 3);
 					}
 					if (!$hit) {
 						$nextBombs[] = $bm;
@@ -368,6 +386,7 @@ if (!function_exists('invaders_demo')) {
 				}
 
 				if ($lives <= 0) {
+					play("T160 O4 L16 G F E D C4", 4, false);
 					$statusText = "GAME OVER! SCORE: " . $score;
 					pencolor(12);
 					locate(12, 10);
@@ -400,6 +419,11 @@ if (!function_exists('invaders_demo')) {
 			}
 		}
 
+		sound_stop();
+		for ($c = 0; $c < 5; $c++) {
+			voice($c, 'lead');
+		}
+		pencolor(15);
 		if (screen_mode()) {
 			screen(0);
 		}

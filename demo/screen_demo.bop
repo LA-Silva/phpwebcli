@@ -3,7 +3,7 @@
  * screen_demo.bop — Interactive showcase of all 2D screen framebuffer functions.
  *
  * Run from the browser BOP CLI (bop > prompt):
- *   $includeBop('screen_demo.bop');
+ *   $includeBop('demo/screen_demo.bop');
  *
  * Press ESC (or click "ESC: Exit Screen", or run screen_mode(false);)
  * to return from the 2D screen back to the bop > prompt.

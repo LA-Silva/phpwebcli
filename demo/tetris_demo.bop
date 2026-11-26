@@ -1,0 +1,775 @@
+<?bop
+/**
+ * tetris_demo.bop — Playable classic Tetris arcade demo in BOP.
+ *
+ * Uses:
+ *   screen('320x200'), cls(), pencolor(), pixel(), line(), locate(),
+ *   inkey(), keydown(), usleep(), and AdLib FM audio (voice, sound, play).
+ *
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('demo/tetris_demo.bop');
+ *   include 'demo/tetris_demo.bop';
+ *
+ * Controls:
+ *   ArrowLeft / A   Move piece left
+ *   ArrowRight / D  Move piece right
+ *   ArrowUp / W / X Rotate clockwise
+ *   Z               Rotate counter-clockwise
+ *   ArrowDown / S   Soft drop (+1 pt/row)
+ *   Space           Hard drop (+2 pts/row)
+ *   P               Pause / Resume
+ *   M               Toggle Korobeiniki music
+ *   Q or ESC        Quit back to bop > prompt
+ */
+
+if (!function_exists('__tetris_shapes')) {
+	function __tetris_shapes() {
+		// 7 classic Tetrominoes with 4 rotation states each: [dx, dy] offsets inside 4x4 box
+		// Colors: [fill, highlight, shadow]
+		return [
+			// 0: I (Cyan)
+			[
+				'name' => 'I',
+				'fill' => '#00D8E8',
+				'hi'   => '#99FFFF',
+				'lo'   => '#006878',
+				'rots' => [
+					[[0, 1], [1, 1], [2, 1], [3, 1]],
+					[[2, 0], [2, 1], [2, 2], [2, 3]],
+					[[0, 2], [1, 2], [2, 2], [3, 2]],
+					[[1, 0], [1, 1], [1, 2], [1, 3]]
+				]
+			],
+			// 1: O (Yellow)
+			[
+				'name' => 'O',
+				'fill' => '#F0D800',
+				'hi'   => '#FFFF99',
+				'lo'   => '#887000',
+				'rots' => [
+					[[1, 0], [2, 0], [1, 1], [2, 1]],
+					[[1, 0], [2, 0], [1, 1], [2, 1]],
+					[[1, 0], [2, 0], [1, 1], [2, 1]],
+					[[1, 0], [2, 0], [1, 1], [2, 1]]
+				]
+			],
+			// 2: T (Magenta)
+			[
+				'name' => 'T',
+				'fill' => '#C038F0',
+				'hi'   => '#EE99FF',
+				'lo'   => '#601088',
+				'rots' => [
+					[[1, 0], [0, 1], [1, 1], [2, 1]],
+					[[1, 0], [1, 1], [2, 1], [1, 2]],
+					[[0, 1], [1, 1], [2, 1], [1, 2]],
+					[[1, 0], [0, 1], [1, 1], [1, 2]]
+				]
+			],
+			// 3: S (Green)
+			[
+				'name' => 'S',
+				'fill' => '#28E048',
+				'hi'   => '#99FFB0',
+				'lo'   => '#107820',
+				'rots' => [
+					[[1, 0], [2, 0], [0, 1], [1, 1]],
+					[[1, 0], [1, 1], [2, 1], [2, 2]],
+					[[1, 1], [2, 1], [0, 2], [1, 2]],
+					[[0, 0], [0, 1], [1, 1], [1, 2]]
+				]
+			],
+			// 4: Z (Red)
+			[
+				'name' => 'Z',
+				'fill' => '#F03838',
+				'hi'   => '#FF9999',
+				'lo'   => '#881010',
+				'rots' => [
+					[[0, 0], [1, 0], [1, 1], [2, 1]],
+					[[2, 0], [1, 1], [2, 1], [1, 2]],
+					[[0, 1], [1, 1], [1, 2], [2, 2]],
+					[[1, 0], [0, 1], [1, 1], [0, 2]]
+				]
+			],
+			// 5: J (Blue)
+			[
+				'name' => 'J',
+				'fill' => '#3868F8',
+				'hi'   => '#99BBFF',
+				'lo'   => '#102888',
+				'rots' => [
+					[[0, 0], [0, 1], [1, 1], [2, 1]],
+					[[1, 0], [2, 0], [1, 1], [1, 2]],
+					[[0, 1], [1, 1], [2, 1], [2, 2]],
+					[[1, 0], [1, 1], [0, 2], [1, 2]]
+				]
+			],
+			// 6: L (Orange)
+			[
+				'name' => 'L',
+				'fill' => '#F09018',
+				'hi'   => '#FFCC77',
+				'lo'   => '#884800',
+				'rots' => [
+					[[2, 0], [0, 1], [1, 1], [2, 1]],
+					[[1, 0], [1, 1], [1, 2], [2, 2]],
+					[[0, 1], [1, 1], [2, 1], [0, 2]],
+					[[0, 0], [1, 0], [1, 1], [1, 2]]
+				]
+			]
+		];
+	}
+}
+
+if (!function_exists('__tetris_korobeiniki_seq')) {
+	function __tetris_korobeiniki_seq() {
+		// Each step: [melodyNoteOrNull, bassNoteOrNull, lengthInTicks] (1 tick = 1 frame @ 40ms -> quarter = 6 ticks)
+		return [
+			// Phrase 1: E5 B4 C5 D5 | C5 B4 A4 A4 C5 E5 | D5 C5 B4 C5 | D5 E5 C5 A4 A4
+			['E5', 'E3', 6], ['B4', 'E4', 3], ['C5', 'E3', 3], ['D5', 'E4', 6], ['C5', 'E3', 3], ['B4', 'E4', 3],
+			['A4', 'A2', 6], ['A4', 'A3', 3], ['C5', 'A2', 3], ['E5', 'A3', 6], ['D5', 'A2', 3], ['C5', 'A3', 3],
+			['B4', 'G#2', 9], ['C5', 'G#3', 3], ['D5', 'E3', 6], ['E5', 'G#3', 6],
+			['C5', 'A2', 6], ['A4', 'A3', 6], ['A4', 'A2', 6], [null, null, 6],
+			// Phrase 2: D5 F5 A5 G5 F5 | E5 C5 E5 D5 C5 | B4 B4 C5 D5 | E5 C5 A4 A4
+			[null, 'D3', 3], ['D5', 'D4', 6], ['F5', 'D3', 3], ['A5', 'D4', 6], ['G5', 'D3', 3], ['F5', 'D4', 3],
+			['E5', 'C3', 9], ['C5', 'C4', 3], ['E5', 'C3', 6], ['D5', 'C4', 3], ['C5', 'C3', 3],
+			['B4', 'G#2', 6], ['B4', 'E3', 3], ['C5', 'G#3', 3], ['D5', 'E3', 6], ['E5', 'G#3', 6],
+			['C5', 'A2', 6], ['A4', 'A3', 6], ['A4', 'A2', 6], [null, null, 6],
+			// B section: E5 C5 D5 B4 | C5 A4 G#4 B4 | E5 C5 D5 B4 | C5 E5 A5 G#5
+			['E5', 'A2', 12], ['C5', 'E3', 12],
+			['D5', 'G#2', 12], ['B4', 'E3', 12],
+			['C5', 'A2', 12], ['A4', 'E3', 12],
+			['G#4', 'G#2', 12], ['B4', 'E3', 12],
+			['E5', 'A2', 12], ['C5', 'E3', 12],
+			['D5', 'G#2', 12], ['B4', 'E3', 12],
+			['C5', 'A2', 6], ['E5', 'E3', 6], ['A5', 'A3', 12],
+			['G#5', 'G#3', 18], [null, null, 6]
+		];
+	}
+}
+
+if (!function_exists('__tetris_new_bag')) {
+	function __tetris_new_bag() {
+		$bag = [0, 1, 2, 3, 4, 5, 6];
+		for ($i = 6; $i > 0; $i--) {
+			$j = rand(0, $i);
+			$tmp = $bag[$i];
+			$bag[$i] = $bag[$j];
+			$bag[$j] = $tmp;
+		}
+		return $bag;
+	}
+}
+
+if (!function_exists('__tetris_fits')) {
+	function __tetris_fits($board, $shapes, $type, $rot, $px, $py) {
+		$cells = $shapes[$type]['rots'][$rot];
+		foreach ($cells as $c) {
+			$bx = $px + $c[0];
+			$by = $py + $c[1];
+			if ($bx < 0 || $bx >= 10 || $by >= 20) {
+				return false;
+			}
+			if ($by >= 0 && $board[$by][$bx] >= 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+if (!function_exists('__tetris_draw_tile')) {
+	function __tetris_draw_tile($x, $y, $size, $fill, $hi, $lo) {
+		$x1 = $x + $size - 1;
+		$y1 = $y + $size - 1;
+		pencolor($fill);
+		for ($yy = $y + 1; $yy < $y1; $yy++) {
+			line($x + 1, $yy, $x1 - 1, $yy);
+		}
+		pencolor($hi);
+		line($x, $y, $x1 - 1, $y);
+		line($x, $y, $x, $y1 - 1);
+		pencolor($lo);
+		line($x + 1, $y1, $x1, $y1);
+		line($x1, $y + 1, $x1, $y1);
+	}
+}
+
+if (!function_exists('__tetris_draw_ghost_tile')) {
+	function __tetris_draw_ghost_tile($x, $y, $size, $color) {
+		$x1 = $x + $size - 1;
+		$y1 = $y + $size - 1;
+		pencolor($color);
+		pixel($x + 1, $y); pixel($x + 3, $y); pixel($x + 5, $y); pixel($x + 7, $y);
+		pixel($x + 1, $y1); pixel($x + 3, $y1); pixel($x + 5, $y1); pixel($x + 7, $y1);
+		pixel($x, $y + 2); pixel($x, $y + 4); pixel($x, $y + 6);
+		pixel($x1, $y + 2); pixel($x1, $y + 4); pixel($x1, $y + 6);
+	}
+}
+
+if (!function_exists('tetris_demo')) {
+	function tetris_demo($maxFrames = 0) {
+		screen('320x200');
+		cls();
+		srand();
+
+		$COLS = 10;
+		$ROWS = 20;
+		$CELL = 9;
+		$BX = 115; // Well spans x=115..204 (width 90)
+		$BY = 10;  // Well spans y=10..189 (height 180)
+
+		$shapes = __tetris_shapes();
+		$song = __tetris_korobeiniki_seq();
+
+		// AdLib FM sound channels:
+		// 0: Korobeiniki lead, 1: Korobeiniki bass, 2: move/rotate blip, 3: lock/drop thud, 4: line/game-over jingles
+		voice(0, ['modWave' => 'sine', 'carWave' => 'square', 'modMult' => 2, 'carMult' => 1, 'modIndex' => 1.3, 'modDecay' => 0.14, 'attack' => 0.004, 'decay' => 0.08, 'sustain' => 0.55, 'release' => 0.04, 'slide' => 1, 'noise' => 0]);
+		voice(1, 'bass');
+		voice(2, 'beep');
+		voice(3, ['modWave' => 'sine', 'carWave' => 'triangle', 'modMult' => 1, 'carMult' => 0.5, 'modIndex' => 2.5, 'modDecay' => 0.07, 'attack' => 0.002, 'decay' => 0.07, 'sustain' => 0.1, 'release' => 0.03, 'slide' => 0.55, 'noise' => 0.15]);
+		voice(4, 'lead');
+
+		$highScore = 0;
+		$running = true;
+		$frameCount = 0;
+
+		while ($running && screen_mode()) {
+			// Initialize fresh game board (-1 = empty, 0..6 = locked piece color index)
+			$board = [];
+			for ($r = 0; $r < $ROWS; $r++) {
+				$rowArr = [];
+				for ($c = 0; $c < $COLS; $c++) {
+					$rowArr[] = -1;
+				}
+				$board[] = $rowArr;
+			}
+
+			$bag = __tetris_new_bag();
+			$curType = array_shift($bag);
+			$nextType = array_shift($bag);
+			$curRot = 0;
+			$curX = 3;
+			$curY = 0;
+
+			$score = 0;
+			$lines = 0;
+			$level = 1;
+			$paused = false;
+			$musicOn = true;
+			$gameOver = false;
+
+			$gravTick = 0;
+			$dasDir = 0;
+			$dasTicks = 0;
+			$softTicks = 0;
+
+			$flashRows = [];
+			$flashTimer = 0;
+			$statusMsg = '';
+			$statusTimer = 0;
+
+			$songIdx = 0;
+			$songWait = 0;
+
+			while ($running && screen_mode() && !$gameOver) {
+				$frameCount++;
+				if ($maxFrames > 0 && $frameCount > $maxFrames) {
+					$running = false;
+					break;
+				}
+
+				// 1. Non-blocking discrete keyboard input
+				$edgeLeft = false;
+				$edgeRight = false;
+				$edgeDown = false;
+				$rotDir = 0;
+				$hardDrop = false;
+
+				while (true) {
+					$k = inkey();
+					if ($k === '') {
+						break;
+					}
+					$kl = lower($k);
+					if ($kl === 'q') {
+						$running = false;
+						break;
+					}
+					if ($kl === 'p') {
+						$paused = !$paused;
+						if ($paused) {
+							sound_stop();
+						}
+					} elseif ($kl === 'm') {
+						$musicOn = !$musicOn;
+						if (!$musicOn) {
+							note_off(0);
+							note_off(1);
+						}
+					} elseif (!$paused && $flashTimer === 0) {
+						if ($kl === 'arrowleft' || $kl === 'a') {
+							$edgeLeft = true;
+						} elseif ($kl === 'arrowright' || $kl === 'd') {
+							$edgeRight = true;
+						} elseif ($kl === 'arrowdown' || $kl === 's') {
+							$edgeDown = true;
+						} elseif ($kl === 'arrowup' || $kl === 'w' || $kl === 'x') {
+							$rotDir = 1;
+						} elseif ($kl === 'z') {
+							$rotDir = -1;
+						} elseif ($kl === ' ') {
+							$hardDrop = true;
+						}
+					}
+				}
+				if (!$running) {
+					break;
+				}
+
+				// 2. Game update (when active & not flashing cleared lines)
+				if (!$paused) {
+					// Step Korobeiniki two-voice chiptune
+					if ($musicOn) {
+						if ($songWait <= 0) {
+							$step = $song[$songIdx];
+							$durMs = $step[2] * 36;
+							if ($step[0] !== null) {
+								sound($step[0], $durMs, 0);
+							}
+							if ($step[1] !== null) {
+								sound($step[1], $durMs + 20, 1);
+							}
+							$songWait = $step[2];
+							$songIdx = ($songIdx + 1) % count($song);
+						}
+						$songWait--;
+					}
+
+					if ($statusTimer > 0) {
+						$statusTimer--;
+						if ($statusTimer === 0) {
+							$statusMsg = '';
+						}
+					}
+
+					if ($flashTimer > 0) {
+						$flashTimer--;
+						if ($flashTimer === 0 && count($flashRows) > 0) {
+							// Collapse cleared rows top-down
+							$keep = [];
+							for ($r = 0; $r < $ROWS; $r++) {
+								$isCleared = false;
+								foreach ($flashRows as $fr) {
+									if ($fr === $r) {
+										$isCleared = true;
+										break;
+									}
+								}
+								if (!$isCleared) {
+									$keep[] = $board[$r];
+								}
+							}
+							$clearedCount = count($flashRows);
+							$nextBoard = [];
+							for ($e = 0; $e < $clearedCount; $e++) {
+								$nextBoard[] = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
+							}
+							foreach ($keep as $kr) {
+								$nextBoard[] = $kr;
+							}
+							$board = $nextBoard;
+							$flashRows = [];
+
+							// Spawn next piece from 7-bag
+							if (count($bag) < 2) {
+								$more = __tetris_new_bag();
+								foreach ($more as $mt) {
+									$bag[] = $mt;
+								}
+							}
+							$curType = $nextType;
+							$nextType = array_shift($bag);
+							$curRot = 0;
+							$curX = 3;
+							$curY = 0;
+							$gravTick = 0;
+
+							if (!__tetris_fits($board, $shapes, $curType, $curRot, $curX, $curY)) {
+								$gameOver = true;
+							}
+						}
+					} else {
+						// Held-key DAS horizontal repeat
+						$heldLeft = keydown('left') || keydown('a');
+						$heldRight = keydown('right') || keydown('d');
+						$moveDx = 0;
+
+						if ($edgeLeft) {
+							$moveDx = -1;
+							$dasDir = -1;
+							$dasTicks = 0;
+						} elseif ($edgeRight) {
+							$moveDx = 1;
+							$dasDir = 1;
+							$dasTicks = 0;
+						} elseif ($heldLeft && !$heldRight) {
+							if ($dasDir !== -1) {
+								$dasDir = -1;
+								$dasTicks = 0;
+								$moveDx = -1;
+							} else {
+								$dasTicks++;
+								if ($dasTicks >= 6 && ($dasTicks % 2 === 0)) {
+									$moveDx = -1;
+								}
+							}
+						} elseif ($heldRight && !$heldLeft) {
+							if ($dasDir !== 1) {
+								$dasDir = 1;
+								$dasTicks = 0;
+								$moveDx = 1;
+							} else {
+								$dasTicks++;
+								if ($dasTicks >= 6 && ($dasTicks % 2 === 0)) {
+									$moveDx = 1;
+								}
+							}
+						} else {
+							$dasDir = 0;
+							$dasTicks = 0;
+						}
+
+						if ($moveDx !== 0 && __tetris_fits($board, $shapes, $curType, $curRot, $curX + $moveDx, $curY)) {
+							$curX += $moveDx;
+							sound(580, 20, 2);
+						}
+
+						// Rotation with wall-kick offsets
+						if ($rotDir !== 0) {
+							$candRot = ($curRot + $rotDir + 4) % 4;
+							$kicks = [[0, 0], [-1, 0], [1, 0], [-2, 0], [2, 0], [0, -1]];
+							foreach ($kicks as $kk) {
+								if (__tetris_fits($board, $shapes, $curType, $candRot, $curX + $kk[0], $curY + $kk[1])) {
+									$curX += $kk[0];
+									$curY += $kk[1];
+									$curRot = $candRot;
+									sound(860, 28, 2);
+									break;
+								}
+							}
+						}
+
+						$lockNow = false;
+						if ($hardDrop) {
+							$dropRows = 0;
+							while (__tetris_fits($board, $shapes, $curType, $curRot, $curX, $curY + 1)) {
+								$curY++;
+								$dropRows++;
+							}
+							$score += $dropRows * 2;
+							if ($score > $highScore) $highScore = $score;
+							sound(120, 70, 3);
+							$lockNow = true;
+						} else {
+							// Gravity + soft drop
+							$heldDown = keydown('down') || keydown('s');
+							$wantDrop = $edgeDown;
+							if ($heldDown && !$edgeDown) {
+								$softTicks++;
+								if ($softTicks >= 2) {
+									$softTicks = 0;
+									$wantDrop = true;
+								}
+							} else {
+								$softTicks = 0;
+							}
+
+							$gravInterval = max(2, 18 - ($level - 1) * 2);
+							$gravTick++;
+							if ($wantDrop || $gravTick >= $gravInterval) {
+								$gravTick = 0;
+								if (__tetris_fits($board, $shapes, $curType, $curRot, $curX, $curY + 1)) {
+									$curY++;
+									if ($wantDrop) {
+										$score += 1;
+										if ($score > $highScore) $highScore = $score;
+									}
+								} else {
+									sound(160, 45, 3);
+									$lockNow = true;
+								}
+							}
+						}
+
+						if ($lockNow) {
+							// Lock piece onto board
+							$cells = $shapes[$curType]['rots'][$curRot];
+							foreach ($cells as $c) {
+								$bx = $curX + $c[0];
+								$by = $curY + $c[1];
+								if ($by >= 0 && $by < $ROWS && $bx >= 0 && $bx < $COLS) {
+									$board[$by][$bx] = $curType;
+								}
+							}
+
+							// Detect full rows
+							$full = [];
+							for ($r = 0; $r < $ROWS; $r++) {
+								$isFull = true;
+								for ($c = 0; $c < $COLS; $c++) {
+									if ($board[$r][$c] < 0) {
+										$isFull = false;
+										break;
+									}
+								}
+								if ($isFull) {
+									$full[] = $r;
+								}
+							}
+
+							if (count($full) > 0) {
+								$cnt = count($full);
+								$ptsTable = [0, 100, 300, 500, 800];
+								$score += $ptsTable[$cnt] * $level;
+								if ($score > $highScore) $highScore = $score;
+								$prevLevel = $level;
+								$lines += $cnt;
+								$level = 1 + intdiv($lines, 10);
+
+								$labels = ['', 'SINGLE!', 'DOUBLE!', 'TRIPLE!', 'TETRIS!!'];
+								$statusMsg = $labels[$cnt];
+								$statusTimer = 32;
+								if ($level > $prevLevel) {
+									$statusMsg = 'LEVEL ' . $level . '!';
+								}
+
+								if ($cnt === 4) {
+									play("T240 O5 L16 C E G > C E G8 > C4", 4, false);
+								} else {
+									play("T220 O5 L16 E G B > E8", 4, false);
+								}
+
+								$flashRows = $full;
+								$flashTimer = 8;
+							} else {
+								if (count($bag) < 2) {
+									$more = __tetris_new_bag();
+									foreach ($more as $mt) {
+										$bag[] = $mt;
+									}
+								}
+								$curType = $nextType;
+								$nextType = array_shift($bag);
+								$curRot = 0;
+								$curX = 3;
+								$curY = 0;
+								$gravTick = 0;
+
+								if (!__tetris_fits($board, $shapes, $curType, $curRot, $curX, $curY)) {
+									$gameOver = true;
+								}
+							}
+						}
+					}
+				}
+
+				// 3. Render entire frame into VRAM buffer
+				cls();
+
+				// Left panel: Title & Stats
+				pencolor(11);
+				locate(2, 3);
+				echo "T E T R I S";
+				pencolor(8);
+				line(12, 18, 100, 18);
+
+				pencolor(7);
+				locate(5, 3);
+				echo "SCORE";
+				pencolor(15);
+				locate(6, 3);
+				echo sprintf("%07d", $score);
+
+				pencolor(7);
+				locate(9, 3);
+				echo "HIGH";
+				pencolor(14);
+				locate(10, 3);
+				echo sprintf("%07d", $highScore);
+
+				pencolor(7);
+				locate(13, 3);
+				echo "LEVEL";
+				pencolor(10);
+				locate(14, 3);
+				echo sprintf("%02d", $level);
+
+				pencolor(7);
+				locate(17, 3);
+				echo "LINES";
+				pencolor(13);
+				locate(18, 3);
+				echo sprintf("%04d", $lines);
+
+				pencolor(8);
+				locate(21, 3);
+				echo "MUSIC: " . ($musicOn ? "ON" : "OFF");
+
+				if ($statusMsg !== '') {
+					pencolor(14);
+					locate(23, 3);
+					echo $statusMsg;
+				}
+
+				// Right panel: NEXT preview box & Controls
+				pencolor(7);
+				locate(2, 29);
+				echo "NEXT";
+				pencolor(9);
+				line(220, 20, 286, 20);
+				line(220, 68, 286, 68);
+				line(220, 20, 220, 68);
+				line(286, 20, 286, 68);
+
+				$nShape = $shapes[$nextType];
+				$nCells = $nShape['rots'][0];
+				$nOffX = ($nextType === 0) ? 235 : (($nextType === 1) ? 235 : 240);
+				$nOffY = ($nextType === 0) ? 31 : 35;
+				foreach ($nCells as $nc) {
+					__tetris_draw_tile($nOffX + $nc[0] * $CELL, $nOffY + $nc[1] * $CELL, $CELL, $nShape['fill'], $nShape['hi'], $nShape['lo']);
+				}
+
+				pencolor(7);
+				locate(11, 28); echo "CONTROLS";
+				pencolor(8);
+				line(216, 90, 310, 90);
+				pencolor(7);
+				locate(13, 28); echo "L/R   Move";
+				locate(14, 28); echo "UP/X  Rot CW";
+				locate(15, 28); echo "Z     Rot CCW";
+				locate(16, 28); echo "DOWN  Soft";
+				locate(17, 28); echo "SPACE Drop";
+				locate(18, 28); echo "P     Pause";
+				locate(19, 28); echo "M     Music";
+				locate(20, 28); echo "Q/ESC Quit";
+
+				// Playfield outer border & subtle grid dots
+				pencolor(9);
+				line($BX - 2, $BY - 2, $BX + $COLS * $CELL + 1, $BY - 2);
+				line($BX - 2, $BY + $ROWS * $CELL + 1, $BX + $COLS * $CELL + 1, $BY + $ROWS * $CELL + 1);
+				line($BX - 2, $BY - 2, $BX - 2, $BY + $ROWS * $CELL + 1);
+				line($BX + $COLS * $CELL + 1, $BY - 2, $BX + $COLS * $CELL + 1, $BY + $ROWS * $CELL + 1);
+
+				pencolor('#202638');
+				for ($r = 1; $r < $ROWS; $r++) {
+					for ($c = 1; $c < $COLS; $c++) {
+						pixel($BX + $c * $CELL, $BY + $r * $CELL);
+					}
+				}
+
+				// Draw locked board blocks (with line-clear flash effect)
+				for ($r = 0; $r < $ROWS; $r++) {
+					$isFlashRow = false;
+					if ($flashTimer > 0) {
+						foreach ($flashRows as $fr) {
+							if ($fr === $r) {
+								$isFlashRow = true;
+								break;
+							}
+						}
+					}
+					if ($isFlashRow && ($flashTimer % 2 === 0)) {
+						pencolor(15);
+						$fy = $BY + $r * $CELL;
+						for ($yy = 1; $yy < $CELL - 1; $yy++) {
+							line($BX + 1, $fy + $yy, $BX + $COLS * $CELL - 2, $fy + $yy);
+						}
+						continue;
+					}
+					for ($c = 0; $c < $COLS; $c++) {
+						$cellType = $board[$r][$c];
+						if ($cellType >= 0) {
+							$sh = $shapes[$cellType];
+							__tetris_draw_tile($BX + $c * $CELL, $BY + $r * $CELL, $CELL, $sh['fill'], $sh['hi'], $sh['lo']);
+						}
+					}
+				}
+
+				// Draw Ghost + Active Tetromino
+				if ($flashTimer === 0 && !$gameOver) {
+					$ghostY = $curY;
+					while (__tetris_fits($board, $shapes, $curType, $curRot, $curX, $ghostY + 1)) {
+						$ghostY++;
+					}
+					$cShape = $shapes[$curType];
+					$cCells = $cShape['rots'][$curRot];
+
+					if ($ghostY > $curY) {
+						foreach ($cCells as $cc) {
+							$gy = $ghostY + $cc[1];
+							if ($gy >= 0) {
+								__tetris_draw_ghost_tile($BX + ($curX + $cc[0]) * $CELL, $BY + $gy * $CELL, $CELL, $cShape['lo']);
+							}
+						}
+					}
+					foreach ($cCells as $cc) {
+						$py = $curY + $cc[1];
+						if ($py >= 0) {
+							__tetris_draw_tile($BX + ($curX + $cc[0]) * $CELL, $BY + $py * $CELL, $CELL, $cShape['fill'], $cShape['hi'], $cShape['lo']);
+						}
+					}
+				}
+
+				if ($paused) {
+					pencolor(14);
+					locate(12, 17);
+					echo " PAUSED ";
+				}
+
+				if ($gameOver) {
+					sound_stop();
+					play("T160 O4 L16 E D# D C# C < B A4", 4, false);
+					pencolor(12);
+					locate(11, 16);
+					echo "GAME OVER!";
+					pencolor(15);
+					locate(13, 14);
+					echo "SPACE: Again";
+					locate(14, 14);
+					echo "Q/ESC: Exit ";
+
+					while ($running && screen_mode()) {
+						$k2 = lower(inkey());
+						if ($k2 === 'q') {
+							$running = false;
+							break;
+						}
+						if ($k2 === ' ') {
+							break;
+						}
+						usleep(50000);
+					}
+					break;
+				}
+
+				usleep(40000);
+			}
+		}
+
+		sound_stop();
+		for ($c = 0; $c < 5; $c++) {
+			voice($c, 'lead');
+		}
+		pencolor(15);
+		if (screen_mode()) {
+			screen(0);
+		}
+		return true;
+	}
+}
+
+if (!isset($tetris_no_autorun) || !$tetris_no_autorun) {
+	tetris_demo();
+}

@@ -48,6 +48,7 @@ include 'test/unit_test_math.bop';
 include 'test/unit_test_array.bop';
 include 'test/unit_test_sqlite.bop';
 include 'test/unit_test_screen.bop';
+include 'test/unit_test_sound.bop';
 unset($unit_test_verbose);
 
 $loginname = myinput("Login:");

@@ -1,0 +1,661 @@
+<?bop
+/**
+ * gridrunner_demo.bop — Llamasoft-inspired Gridrunner arcade demo in BOP.
+ *
+ * Uses:
+ *   screen('320x200'), cls(), pencolor(), pixel(), line(), locate(),
+ *   inkey(), keydown(), usleep(), and AdLib FM audio (voice, sound, play).
+ *
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('demo/gridrunner_demo.bop');
+ *   include 'demo/gridrunner_demo.bop';
+ *
+ * Controls:
+ *   Arrow Keys / WASD   Move ship across lower grid zone
+ *   Space               Fire rapid plasma bolts
+ *   Q or ESC            Quit back to bop > prompt
+ */
+
+if (!function_exists('__grid_draw_ship')) {
+	function __grid_draw_ship($cx, $cy) {
+		// Classic yellow/white Llamasoft delta-pod blaster
+		pencolor(14);
+		line($cx, $cy - 4, $cx, $cy + 3);
+		line($cx - 1, $cy - 2, $cx + 1, $cy - 2);
+		line($cx - 2, $cy, $cx + 2, $cy);
+		line($cx - 4, $cy + 2, $cx + 4, $cy + 2);
+		line($cx - 4, $cy + 3, $cx - 2, $cy + 3);
+		line($cx + 2, $cy + 3, $cx + 4, $cy + 3);
+		pencolor(15);
+		pixel($cx, $cy - 4);
+		pixel($cx, $cy - 3);
+		pencolor(12);
+		pixel($cx - 1, $cy + 4);
+		pixel($cx + 1, $cy + 4);
+	}
+}
+
+if (!function_exists('__grid_draw_segment')) {
+	function __grid_draw_segment($cx, $cy, $isHead, $color, $anim) {
+		pencolor($color);
+		if ($isHead) {
+			line($cx - 2, $cy - 3, $cx + 2, $cy - 3);
+			line($cx - 3, $cy - 2, $cx + 3, $cy - 2);
+			line($cx - 3, $cy - 1, $cx + 3, $cy - 1);
+			line($cx - 3, $cy,     $cx + 3, $cy);
+			line($cx - 2, $cy + 1, $cx + 2, $cy + 1);
+			line($cx - 1, $cy + 2, $cx + 1, $cy + 2);
+			// Glowing eyes
+			pencolor(15);
+			pixel($cx - 2, $cy - 1);
+			pixel($cx + 2, $cy - 1);
+			// Animated mandibles
+			pencolor(14);
+			if ($anim === 0) {
+				pixel($cx - 3, $cy + 2);
+				pixel($cx + 3, $cy + 2);
+			} else {
+				pixel($cx - 2, $cy + 3);
+				pixel($cx + 2, $cy + 3);
+			}
+		} else {
+			line($cx - 2, $cy - 2, $cx + 2, $cy - 2);
+			line($cx - 3, $cy - 1, $cx + 3, $cy - 1);
+			line($cx - 3, $cy,     $cx + 3, $cy);
+			line($cx - 2, $cy + 1, $cx + 2, $cy + 1);
+			pencolor(15);
+			pixel($cx, $cy);
+			pencolor($color);
+			if ($anim === 0) {
+				pixel($cx - 3, $cy + 2);
+				pixel($cx + 3, $cy + 2);
+			} else {
+				pixel($cx - 2, $cy + 2);
+				pixel($cx + 2, $cy + 2);
+			}
+		}
+	}
+}
+
+if (!function_exists('__grid_draw_pod')) {
+	function __grid_draw_pod($cx, $cy, $hp, $phase) {
+		$c = ($hp > 1) ? (($phase === 0) ? 13 : 11) : (($phase === 0) ? 14 : 12);
+		pencolor($c);
+		pixel($cx, $cy - 3);
+		line($cx - 1, $cy - 2, $cx + 1, $cy - 2);
+		line($cx - 2, $cy - 1, $cx + 2, $cy - 1);
+		line($cx - 3, $cy,     $cx + 3, $cy);
+		line($cx - 2, $cy + 1, $cx + 2, $cy + 1);
+		line($cx - 1, $cy + 2, $cx + 1, $cy + 2);
+		pixel($cx, $cy + 3);
+		pencolor(15);
+		pixel($cx, $cy);
+	}
+}
+
+if (!function_exists('__grid_spawn_droid')) {
+	function __grid_spawn_droid($length, $startCol, $startRow, $dir, $color) {
+		$segs = [];
+		for ($i = 0; $i < $length; $i++) {
+			$segs[] = [
+				'c' => $startCol,
+				'r' => $startRow,
+				'dir' => $dir,
+				'delay' => $i
+			];
+		}
+		return [
+			'color' => $color,
+			'segs' => $segs
+		];
+	}
+}
+
+if (!function_exists('gridrunner_demo')) {
+	function gridrunner_demo($maxFrames = 0) {
+		screen('320x200');
+		cls();
+		srand(1982);
+
+		$COLS = 22;
+		$ROWS = 18;
+		$CELL = 9;
+		$BX = 61;
+		$BY = 18;
+		$MIN_SHIP_ROW = 13; // Bottom 5 rows are player territory
+
+		// AdLib FM channels (0: plasma shot, 1: pod/droid hit, 2: zapper beam buzz, 3: ship boom, 4: jingles)
+		voice(0, 'laser');
+		voice(1, 'coin');
+		voice(2, ['modWave' => 'square', 'carWave' => 'sawtooth', 'modMult' => 2.5, 'carMult' => 1, 'modIndex' => 4.2, 'modDecay' => 0.14, 'attack' => 0.002, 'decay' => 0.1, 'sustain' => 0.3, 'release' => 0.04, 'slide' => 0.65, 'noise' => 0.25]);
+		voice(3, 'boom');
+		voice(4, 'lead');
+
+		$score = 0;
+		$highScore = 0;
+		$lives = 3;
+		$wave = 1;
+		$running = true;
+		$frameCount = 0;
+
+		while ($running && screen_mode()) {
+			// Wave setup
+			$shipC = 10;
+			$shipR = 16;
+			$moveDelay = 0;
+			$fireDelay = 0;
+
+			// Zapper hunters along bottom (X) and left (Y) grid edges
+			$xZapC = 0;
+			$xZapTimer = 75;
+			$xZapFlash = 0;
+			$xBeamC = -1;
+
+			$yZapR = $MIN_SHIP_ROW;
+			$yZapTimer = 105;
+			$yZapFlash = 0;
+			$yBeamR = -1;
+
+			$shots = [];
+			$sparks = [];
+			$pods = []; // key "r_c" => ['r' => r, 'c' => c, 'hp' => 2]
+
+			// Seed initial scattered pods in mid-upper grid
+			$initPods = min(14, 5 + $wave * 2);
+			for ($p = 0; $p < $initPods; $p++) {
+				$pr = rand(3, 11);
+				$pc = rand(1, $COLS - 2);
+				$pods[$pr . '_' . $pc] = ['r' => $pr, 'c' => $pc, 'hp' => 2];
+			}
+
+			// Spawn wave droids (increasing squadrons + lengths)
+			$waveColors = [10, 11, 13, 14, 12];
+			$droids = [];
+			$numDroids = min(3, 1 + intdiv($wave - 1, 2));
+			$segLen = min(14, 7 + $wave);
+			for ($d = 0; $d < $numDroids; $d++) {
+				$dDir = ($d % 2 === 0) ? 1 : -1;
+				$dCol = ($dDir > 0) ? 0 : ($COLS - 1);
+				$dRow = $d * 2;
+				$droids[] = __grid_spawn_droid($segLen, $dCol, $dRow, $dDir, $waveColors[($wave + $d) % count($waveColors)]);
+			}
+
+			$droidStepRate = max(3, 6 - intdiv($wave - 1, 2));
+			$xZapStepRate = max(4, 7 - intdiv($wave - 1, 2));
+			$yZapStepRate = max(5, 9 - intdiv($wave - 1, 2));
+			$waveTick = 0;
+			$waveCleared = false;
+			$shipHit = false;
+			$statusMsg = 'WAVE ' . $wave . '!';
+			$statusTimer = 28;
+
+			play("T210 O4 L16 C E G > C8", 4, false);
+
+			while ($running && screen_mode() && !$waveCleared && $lives > 0) {
+				$frameCount++;
+				$waveTick++;
+				if ($maxFrames > 0 && $frameCount > $maxFrames) {
+					$running = false;
+					break;
+				}
+
+				// 1. Keyboard input
+				$edgeLeft = false;
+				$edgeRight = false;
+				$edgeUp = false;
+				$edgeDown = false;
+				$wantFire = false;
+
+				while (true) {
+					$k = inkey();
+					if ($k === '') {
+						break;
+					}
+					$kl = lower($k);
+					if ($kl === 'q') {
+						$running = false;
+						break;
+					}
+					if ($kl === 'arrowleft' || $kl === 'a') $edgeLeft = true;
+					elseif ($kl === 'arrowright' || $kl === 'd') $edgeRight = true;
+					elseif ($kl === 'arrowup' || $kl === 'w') $edgeUp = true;
+					elseif ($kl === 'arrowdown' || $kl === 's') $edgeDown = true;
+					elseif ($kl === ' ') $wantFire = true;
+				}
+				if (!$running) {
+					break;
+				}
+
+				if (keydown(' ')) {
+					$wantFire = true;
+				}
+
+				$dc = 0;
+				$dr = 0;
+				if ($edgeLeft) $dc = -1;
+				elseif ($edgeRight) $dc = 1;
+				if ($edgeUp) $dr = -1;
+				elseif ($edgeDown) $dr = 1;
+
+				if ($dc === 0 && $dr === 0) {
+					if ($moveDelay > 0) {
+						$moveDelay--;
+					} else {
+						if (keydown('left') || keydown('a')) $dc = -1;
+						elseif (keydown('right') || keydown('d')) $dc = 1;
+						if (keydown('up') || keydown('w')) $dr = -1;
+						elseif (keydown('down') || keydown('s')) $dr = 1;
+						if ($dc !== 0 || $dr !== 0) {
+							$moveDelay = 1;
+						}
+					}
+				} else {
+					$moveDelay = 2;
+				}
+
+				$shipC = max(0, min($COLS - 1, $shipC + $dc));
+				$shipR = max($MIN_SHIP_ROW, min($ROWS - 1, $shipR + $dr));
+
+				if ($fireDelay > 0) {
+					$fireDelay--;
+				}
+				if ($wantFire && $fireDelay === 0 && count($shots) < 5) {
+					$shots[] = [
+						'x' => $BX + $shipC * $CELL + 4,
+						'y' => $BY + $shipR * $CELL,
+						'c' => $shipC
+					];
+					$fireDelay = 3;
+					sound(1120, 70, 0);
+				}
+
+				// 2. Move player plasma shots & check hits against pods + droids
+				$nextShots = [];
+				foreach ($shots as $sh) {
+					$sh['y'] -= 8;
+					if ($sh['y'] < $BY) {
+						continue;
+					}
+					$shotR = intdiv($sh['y'] - $BY, $CELL);
+					$shotC = $sh['c'];
+					$consumed = false;
+
+					// Hit droid segment?
+					$newDroids = [];
+					foreach ($droids as $drObj) {
+						$segs = $drObj['segs'];
+						$hitIdx = -1;
+						for ($si = 0; $si < count($segs); $si++) {
+							if ($segs[$si]['delay'] > 0) continue;
+							if ($segs[$si]['c'] === $shotC && $segs[$si]['r'] === $shotR) {
+								$hitIdx = $si;
+								break;
+							}
+						}
+						if ($hitIdx >= 0 && !$consumed) {
+							$consumed = true;
+							$score += ($hitIdx === 0) ? 100 : 50;
+							if ($score > $highScore) $highScore = $score;
+
+							// Exploded segment leaves behind a Pod!
+							$pods[$shotR . '_' . $shotC] = ['r' => $shotR, 'c' => $shotC, 'hp' => 2];
+							$sparks[] = ['x' => $BX + $shotC * $CELL + 4, 'y' => $BY + $shotR * $CELL + 4, 't' => 6, 'color' => 14];
+							sound($hitIdx === 0 ? 940 : 720, 85, 1);
+
+							// Front piece keeps moving; back piece splits into a new droid
+							$front = [];
+							for ($fi = 0; $fi < $hitIdx; $fi++) {
+								$front[] = $segs[$fi];
+							}
+							if (count($front) > 0) {
+								$newDroids[] = ['color' => $drObj['color'], 'segs' => $front];
+							}
+							$back = [];
+							for ($bi = $hitIdx + 1; $bi < count($segs); $bi++) {
+								$back[] = $segs[$bi];
+							}
+							if (count($back) > 0) {
+								$newDroids[] = ['color' => $waveColors[($wave + count($newDroids)) % count($waveColors)], 'segs' => $back];
+							}
+						} else {
+							if (count($segs) > 0) {
+								$newDroids[] = $drObj;
+							}
+						}
+					}
+					$droids = $newDroids;
+
+					// Hit Pod?
+					if (!$consumed) {
+						$pk = $shotR . '_' . $shotC;
+						if (isset($pods[$pk])) {
+							$consumed = true;
+							$pods[$pk]['hp']--;
+							if ($pods[$pk]['hp'] <= 0) {
+								unset($pods[$pk]);
+								$score += 25;
+								if ($score > $highScore) $highScore = $score;
+								$sparks[] = ['x' => $BX + $shotC * $CELL + 4, 'y' => $BY + $shotR * $CELL + 4, 't' => 5, 'color' => 11];
+								sound(540, 55, 1);
+							} else {
+								sound(380, 35, 1);
+							}
+						}
+					}
+
+					if (!$consumed) {
+						$nextShots[] = $sh;
+					}
+				}
+				$shots = $nextShots;
+
+				if (count($droids) === 0) {
+					$waveCleared = true;
+					$score += 300 * $wave;
+					if ($score > $highScore) $highScore = $score;
+					$wave++;
+					$statusMsg = 'GRID CLEAR!';
+					play("T220 O5 L16 C E G > C E8 G8 > C4", 4, false);
+				}
+
+				// 3. Move Droids along grid lines (reverse + drop down on edge or pod)
+				if ($waveTick % $droidStepRate === 0) {
+					$nextDroids = [];
+					foreach ($droids as $drObj) {
+						$segs = $drObj['segs'];
+						for ($si = 0; $si < count($segs); $si++) {
+							$sg = $segs[$si];
+							if ($sg['delay'] > 0) {
+								$sg['delay']--;
+								$segs[$si] = $sg;
+								continue;
+							}
+							$nc = $sg['c'] + $sg['dir'];
+							$nr = $sg['r'];
+							$ndir = $sg['dir'];
+							$blockedByPod = ($nc >= 0 && $nc < $COLS && isset($pods[$nr . '_' . $nc]));
+							if ($nc < 0 || $nc >= $COLS || $blockedByPod) {
+								$ndir = -$ndir;
+								$nr++;
+								if ($nr >= $ROWS) {
+									// Wrap back to top row if it reaches the bottom
+									$nr = 0;
+								}
+							} else {
+								$sg['c'] = $nc;
+							}
+							$sg['r'] = $nr;
+							$sg['dir'] = $ndir;
+							$segs[$si] = $sg;
+
+							if ($sg['r'] === $shipR && $sg['c'] === $shipC) {
+								$shipHit = true;
+							}
+						}
+						$nextDroids[] = ['color' => $drObj['color'], 'segs' => $segs];
+					}
+					$droids = $nextDroids;
+				}
+
+				// 4. Update Border Zappers (classic Gridrunner X & Y axis stalkers + beams)
+				$xBeamC = -1;
+				if ($xZapFlash > 0) {
+					$xZapFlash--;
+					if ($xZapFlash === 0) {
+						$xBeamC = $xZapC;
+						sound(190, 120, 2);
+						if ($shipC === $xBeamC) {
+							$shipHit = true;
+						}
+						// Leave a pod at zapper intersection or random mid-grid row
+						$podR = ($yBeamR >= 0) ? $yBeamR : rand(4, $ROWS - 2);
+						if ($podR !== $shipR || $xBeamC !== $shipC) {
+							$pods[$podR . '_' . $xBeamC] = ['r' => $podR, 'c' => $xBeamC, 'hp' => 2];
+						}
+						$xZapTimer = max(42, 82 - $wave * 4);
+					}
+				} else {
+					if ($waveTick % $xZapStepRate === 0) {
+						if ($xZapC < $shipC) $xZapC++;
+						elseif ($xZapC > $shipC) $xZapC--;
+					}
+					$xZapTimer--;
+					if ($xZapTimer <= 0) {
+						$xZapFlash = 15;
+						sound(420, 40, 2);
+					}
+				}
+
+				$yBeamR = -1;
+				if ($yZapFlash > 0) {
+					$yZapFlash--;
+					if ($yZapFlash === 0) {
+						$yBeamR = $yZapR;
+						sound(155, 130, 2);
+						if ($shipR === $yBeamR) {
+							$shipHit = true;
+						}
+						$yZapTimer = max(52, 100 - $wave * 4);
+					}
+				} else {
+					if ($waveTick % $yZapStepRate === 0) {
+						if ($yZapR < $shipR) $yZapR++;
+						elseif ($yZapR > $shipR) $yZapR--;
+					}
+					$yZapTimer--;
+					if ($yZapTimer <= 0) {
+						$yZapFlash = 15;
+						sound(360, 40, 2);
+					}
+				}
+
+				if ($shipHit) {
+					$lives--;
+					sound(105, 420, 3);
+				}
+
+				// Decay sparks & status text
+				$nextSparks = [];
+				foreach ($sparks as $sp) {
+					$sp['t']--;
+					if ($sp['t'] > 0) $nextSparks[] = $sp;
+				}
+				$sparks = $nextSparks;
+				if ($statusTimer > 0) {
+					$statusTimer--;
+					if ($statusTimer === 0) $statusMsg = '';
+				}
+
+				// 5. Render entire frame into VRAM buffer
+				cls();
+
+				// Top HUD
+				pencolor(11);
+				locate(1, 2);
+				echo "GRIDRUNNER";
+				pencolor(15);
+				locate(1, 14);
+				echo sprintf("SCORE:%05d  WAVE:%d  LIVES:%d", $score, $wave, max(0, $lives));
+				if ($statusMsg !== '') {
+					pencolor(14);
+					locate(2, 16);
+					echo $statusMsg;
+				}
+				pencolor(7);
+				locate(25, 3);
+				echo "ARROWS/WASD:Move   SPACE:Fire   Q/ESC:Exit";
+
+				// Psychedelic coordinate grid (grid lines run through tile centers)
+				$gridCol = ($wave % 2 === 1) ? '#144488' : '#332277';
+				if ($waveCleared) $gridCol = 15;
+				pencolor($gridCol);
+				$xLeft = $BX + 4;
+				$xRight = $BX + ($COLS - 1) * $CELL + 4;
+				$yTop = $BY + 4;
+				$yBot = $BY + ($ROWS - 1) * $CELL + 4;
+
+				for ($c = 0; $c < $COLS; $c++) {
+					$gx = $BX + $c * $CELL + 4;
+					line($gx, $yTop, $gx, $yBot);
+				}
+				for ($r = 0; $r < $ROWS; $r++) {
+					$gy = $BY + $r * $CELL + 4;
+					line($xLeft, $gy, $xRight, $gy);
+				}
+
+				// Subtle highlight line dividing player territory
+				pencolor('#2877AA');
+				$zoneY = $BY + $MIN_SHIP_ROW * $CELL;
+				line($xLeft - 4, $zoneY, $xRight + 4, $zoneY);
+
+				// Zapper Emitters & Active Beams
+				$xzX = $BX + $xZapC * $CELL + 4;
+				$xzY = $BY + $ROWS * $CELL + 4;
+				pencolor($xZapFlash > 0 ? (($frameCount % 2 === 0) ? 15 : 12) : 10);
+				line($xzX - 3, $xzY, $xzX + 3, $xzY);
+				line($xzX - 2, $xzY - 1, $xzX + 2, $xzY - 1);
+				line($xzX, $xzY - 3, $xzX, $xzY - 1);
+
+				$yzX = $BX - 7;
+				$yzY = $BY + $yZapR * $CELL + 4;
+				pencolor($yZapFlash > 0 ? (($frameCount % 2 === 0) ? 15 : 12) : 13);
+				line($yzX, $yzY - 3, $yzX, $yzY + 3);
+				line($yzX + 1, $yzY - 2, $yzX + 1, $yzY + 2);
+				line($yzX + 1, $yzY, $yzX + 3, $yzY);
+
+				if ($xZapFlash > 0 && ($xZapFlash % 2 === 1)) {
+					pencolor(6);
+					line($xzX, $yTop, $xzX, $yBot);
+				}
+				if ($yZapFlash > 0 && ($yZapFlash % 2 === 1)) {
+					pencolor(5);
+					line($xLeft, $yzY, $xRight, $yzY);
+				}
+
+				if ($xBeamC >= 0) {
+					$bxLine = $BX + $xBeamC * $CELL + 4;
+					pencolor(12);
+					line($bxLine - 1, $yTop, $bxLine - 1, $yBot);
+					line($bxLine + 1, $yTop, $bxLine + 1, $yBot);
+					pencolor(15);
+					line($bxLine, $yTop, $bxLine, $yBot);
+				}
+				if ($yBeamR >= 0) {
+					$byLine = $BY + $yBeamR * $CELL + 4;
+					pencolor(13);
+					line($xLeft, $byLine - 1, $xRight, $byLine - 1);
+					line($xLeft, $byLine + 1, $xRight, $byLine + 1);
+					pencolor(15);
+					line($xLeft, $byLine, $xRight, $byLine);
+				}
+
+				// Draw Pods
+				$podPhase = ($frameCount >> 2) % 2;
+				foreach ($pods as $pd) {
+					__grid_draw_pod($BX + $pd['c'] * $CELL + 4, $BY + $pd['r'] * $CELL + 4, $pd['hp'], $podPhase);
+				}
+
+				// Draw Droids
+				$dAnim = ($frameCount >> 1) % 2;
+				foreach ($droids as $drObj) {
+					$segs = $drObj['segs'];
+					for ($si = count($segs) - 1; $si >= 0; $si--) {
+						$sg = $segs[$si];
+						if ($sg['delay'] > 0) continue;
+						__grid_draw_segment($BX + $sg['c'] * $CELL + 4, $BY + $sg['r'] * $CELL + 4, $si === 0, $drObj['color'], $dAnim);
+					}
+				}
+
+				// Draw Plasma Shots
+				foreach ($shots as $sh) {
+					pencolor(11);
+					line($sh['x'], $sh['y'], $sh['x'], $sh['y'] + 4);
+					pencolor(15);
+					pixel($sh['x'], $sh['y']);
+				}
+
+				// Draw Particle Sparks
+				foreach ($sparks as $sp) {
+					$d = 7 - $sp['t'];
+					pencolor($sp['color']);
+					pixel($sp['x'] - $d, $sp['y'] - $d);
+					pixel($sp['x'] + $d, $sp['y'] - $d);
+					pixel($sp['x'] - $d, $sp['y'] + $d);
+					pixel($sp['x'] + $d, $sp['y'] + $d);
+				}
+
+				// Draw Player Ship
+				if (!$shipHit) {
+					__grid_draw_ship($BX + $shipC * $CELL + 4, $BY + $shipR * $CELL + 4);
+				}
+
+				if ($shipHit) {
+					if ($lives > 0) {
+						pencolor(14);
+						locate(2, 14);
+						echo "ZAPPED! -1 LIFE";
+						usleep(600000);
+						$shipC = 10;
+						$shipR = 16;
+						$shots = [];
+						$xZapC = 0;
+						$xZapTimer = 75;
+						$xZapFlash = 0;
+						$yZapR = $MIN_SHIP_ROW;
+						$yZapTimer = 105;
+						$yZapFlash = 0;
+						$shipHit = false;
+					} else {
+						play("T165 O4 L16 G F E D# D C# C4", 4, false);
+						pencolor(12);
+						locate(11, 13);
+						echo "GAME OVER! HI:" . $highScore;
+						pencolor(15);
+						locate(13, 6);
+						echo "SPACE: Play Again   Q/ESC: Exit";
+						while ($running && screen_mode()) {
+							$k2 = lower(inkey());
+							if ($k2 === 'q') {
+								$running = false;
+								break;
+							}
+							if ($k2 === ' ') {
+								$score = 0;
+								$lives = 3;
+								$wave = 1;
+								break;
+							}
+							usleep(50000);
+						}
+						break;
+					}
+					continue;
+				}
+
+				if ($waveCleared) {
+					pencolor(10);
+					locate(2, 13);
+					echo "GRID CLEAR! +BONUS";
+					usleep(650000);
+					break;
+				}
+
+				usleep(38000);
+			}
+		}
+
+		sound_stop();
+		for ($c = 0; $c < 5; $c++) {
+			voice($c, 'lead');
+		}
+		pencolor(15);
+		if (screen_mode()) {
+			screen(0);
+		}
+		return true;
+	}
+}
+
+if (!isset($gridrunner_no_autorun) || !$gridrunner_no_autorun) {
+	gridrunner_demo();
+}

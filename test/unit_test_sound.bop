@@ -1,0 +1,81 @@
+<?bop
+return call_user_func(function($verbose) {
+	global $bridge;
+
+	$prevVol = volume();
+
+	// 1. Volume control
+	$volSetOk = volume(65);
+	$volRead = volume();
+	volume(250);
+	$volClampHi = volume();
+	volume(-10);
+	$volClampLo = volume();
+	volume($prevVol);
+
+	// 2. Voice preset inspection & switching
+	$prevV0 = voice(0);
+	$prevV2 = voice(2);
+	voice(0, 'lead');
+	$presets = voice();
+	$vDefault = voice(0);
+	$vSetOk = voice(0, 'brass');
+	$vRead = voice(0);
+	$vBad = voice(0, 'nonexistent_patch');
+	$vCustomOk = voice(2, ['modWave' => 'sine', 'carWave' => 'abssine', 'modMult' => 3, 'modIndex' => 2.5]);
+	$vCustomRead = voice(2);
+
+	// 3. Note-to-Hz & MML parser
+	$hzA4 = $bridge->soundNoteFreq('A4');
+	$hzC4 = $bridge->soundNoteFreq('C4');
+	$hzNum = $bridge->soundNoteFreq(523.25);
+	$mml = $bridge->soundParseMml("T120 O4 L8 C E G4 R8 > C");
+
+	// 4. Non-blocking note_on / note_off / sound / sound_stop state tracking
+	voice(0, 'lead');
+	$onOk = note_on(0, 'A4', 90);
+	$stateOn = $bridge->soundState();
+	$offOk = note_off(0);
+	$stateOff = $bridge->soundState();
+
+	$toneOk = sound(440, 40, 1, false);
+	$playBgOk = play("T240 O4 L16 C D E", 3, false);
+	$stopOk = sound_stop();
+	$stateStopped = $bridge->soundState();
+
+	if (is_string($prevV0) && $prevV0 !== 'custom') voice(0, $prevV0);
+	if (is_string($prevV2) && $prevV2 !== 'custom') voice(2, $prevV2);
+
+	$cases = [
+		['volume() defaults to 0..100 and clamps out-of-range values', $volSetOk && $volRead === 65 && $volClampHi === 100 && $volClampLo === 0, true],
+		['voice() returns preset list including lead, bass, brass, laser, boom', is_array($presets) && in_array('lead', $presets) && in_array('laser', $presets) && in_array('boom', $presets), true],
+		['voice(0, "brass") sets channel patch and rejects unknown presets', $vDefault === 'lead' && $vSetOk && $vRead === 'brass' && $vBad === false, true],
+		['voice(2, [...]) accepts custom FM operator parameter object', $vCustomOk && $vCustomRead === 'custom', true],
+		['note-to-Hz converts A4=440Hz, C4~261.63Hz, and preserves numeric Hz', abs($hzA4 - 440.0) < 0.01 && abs($hzC4 - 261.625) < 0.05 && $hzNum === 523.25, true],
+		['MML parser handles tempo, octave, lengths, rests, and > shift', count($mml['events']) === 5 && $mml['events'][0]['type'] === 'note' && $mml['events'][3]['type'] === 'rest' && abs($mml['events'][4]['freq'] - 523.251) < 0.1, true],
+		['note_on() activates channel state and note_off() releases it', $onOk && $stateOn['channels'][0]['active'] === true && abs($stateOn['channels'][0]['freq'] - 440) < 0.01 && $offOk && $stateOff['channels'][0]['active'] === false, true],
+		['sound(), play(..., false), and sound_stop() silence all channels cleanly', $toneOk && $playBgOk && $stopOk && $stateStopped['channels'][1]['active'] === false && $stateStopped['channels'][3]['active'] === false, true],
+	];
+
+	$passed = 0;
+	$failed = 0;
+
+	foreach ($cases as $case) {
+		$label = $case[0];
+		$actual = $case[1];
+		$expected = $case[2];
+
+		if ($actual === $expected) {
+			$passed++;
+			if ($verbose) {
+				echo "[PASS] " . $label . "\n";
+			}
+		} else {
+			$failed++;
+			echo "[FAIL] " . $label . " => got " . var_export($actual, true) . ", expected " . var_export($expected, true) . "\n";
+		}
+	}
+
+	echo "unit_test_sound.bop: " . $passed . "/" . count($cases) . " passed\n";
+	return $failed === 0;
+}, isset($unit_test_verbose) && $unit_test_verbose);

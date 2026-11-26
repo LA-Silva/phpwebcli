@@ -7,8 +7,8 @@
  *   keydown(), inkey(), and usleep().
  *
  * How to run from the browser BOP CLI (bop > prompt):
- *   $includeBop('pacman_demo.bop');
- *   include 'pacman_demo.bop';
+ *   $includeBop('demo/pacman_demo.bop');
+ *   include 'demo/pacman_demo.bop';
  *
  * Controls:
  *   Arrow Keys or WASD  Move Pac-Man (supports corner-turn buffering)
@@ -206,6 +206,16 @@ if (!function_exists('pacman_demo')) {
 		$level = 1;
 		$frameCount = 0;
 		$running = true;
+		$wakaToggle = 0;
+		$introPlayed = false;
+
+		// AdLib FM sound channels (0: waka-up, 1: waka-down, 2: power/cherry/ghost, 3: death, 4: jingles, 5: siren)
+		voice(0, ['modWave' => 'sine', 'carWave' => 'triangle', 'modMult' => 1.5, 'carMult' => 1, 'modIndex' => 2.1, 'modDecay' => 0.07, 'attack' => 0.004, 'decay' => 0.06, 'sustain' => 0.2, 'release' => 0.03, 'slide' => 1.48, 'noise' => 0]);
+		voice(1, ['modWave' => 'sine', 'carWave' => 'triangle', 'modMult' => 1.5, 'carMult' => 1, 'modIndex' => 2.1, 'modDecay' => 0.07, 'attack' => 0.004, 'decay' => 0.06, 'sustain' => 0.2, 'release' => 0.03, 'slide' => 0.68, 'noise' => 0]);
+		voice(2, 'coin');
+		voice(3, ['modWave' => 'sine', 'carWave' => 'halfsine', 'modMult' => 2, 'carMult' => 1, 'modIndex' => 1.6, 'modDecay' => 0.12, 'attack' => 0.005, 'decay' => 0.1, 'sustain' => 0.65, 'release' => 0.06, 'slide' => 1, 'noise' => 0]);
+		voice(4, ['modWave' => 'sine', 'carWave' => 'halfsine', 'modMult' => 1, 'carMult' => 1, 'modIndex' => 1.2, 'modDecay' => 0.2, 'attack' => 0.006, 'decay' => 0.12, 'sustain' => 0.75, 'release' => 0.08, 'slide' => 1, 'noise' => 0]);
+		voice(5, 'sine');
 
 		while ($running && screen_mode()) {
 			// Build level grid and precompute wall border line segments
@@ -277,6 +287,11 @@ if (!function_exists('pacman_demo')) {
 				['name' => 'Inky',   'color' => 11,        'px' => 9 * $TILE,  'py' => 9 * $TILE, 'dir' => 'U', 'state' => 'pen',    'wait' => 55,  'scR' => 15, 'scC' => 19],
 				['name' => 'Clyde',  'color' => '#FFB852', 'px' => 11 * $TILE, 'py' => 9 * $TILE, 'dir' => 'U', 'state' => 'pen',    'wait' => 90,  'scR' => 15, 'scC' => 1]
 			];
+
+			if (!$introPlayed) {
+				$introPlayed = true;
+				play("T165 O4 L16 B > B F# D# B F#8 D#8 C > C G E C G8 E8 < B > B F# D# B F#8 D#8 D# E F F F# G G G# A8 B8", 4, false);
+			}
 
 			$levelTick = 0;
 			while ($running && screen_mode() && !$levelCleared && $lives > 0) {
@@ -351,6 +366,12 @@ if (!function_exists('pacman_demo')) {
 						$grid[$pacR][$pacC] = ' ';
 						$score += 10;
 						$pelletsLeft--;
+						if ($wakaToggle === 0) {
+							sound(340, 75, 0);
+						} else {
+							sound(520, 75, 1);
+						}
+						$wakaToggle = 1 - $wakaToggle;
 					} elseif ($cell === 'o') {
 						$grid[$pacR][$pacC] = ' ';
 						$score += 50;
@@ -359,6 +380,8 @@ if (!function_exists('pacman_demo')) {
 						$eatCombo = 0;
 						$statusMsg = 'POWER!';
 						$statusTimer = 25;
+						voice(2, 'coin');
+						sound('G5', 140, 2);
 						for ($gi = 0; $gi < count($ghosts); $gi++) {
 							if ($ghosts[$gi]['state'] === 'active') {
 								$ghosts[$gi]['dir'] = __pacman_opp_dir($ghosts[$gi]['dir']);
@@ -378,6 +401,8 @@ if (!function_exists('pacman_demo')) {
 						$cherryTimer = 0;
 						$statusMsg = 'CHERRY +100!';
 						$statusTimer = 30;
+						voice(2, 'coin');
+						play("T220 O5 L16 E8 > C8", 2, false);
 					}
 				}
 
@@ -390,9 +415,15 @@ if (!function_exists('pacman_demo')) {
 					$score += 250;
 					if ($score > $highScore) $highScore = $score;
 					$statusMsg = 'LEVEL CLEAR!';
+					play("T200 O5 L16 C E G > C8 < G8 > C4", 4, false);
 				}
 
 				if ($frightTicks > 0) {
+					if ($frameCount % 5 === 0) {
+						$sirenStep = intdiv($frameCount, 5) % 4;
+						$sirenFreqs = [330, 392, 440, 392];
+						sound($sirenFreqs[$sirenStep], 85, 5);
+					}
 					$frightTicks--;
 				}
 				if ($statusTimer > 0) {
@@ -559,9 +590,12 @@ if (!function_exists('pacman_demo')) {
 							$ghosts[$gi]['state'] = 'eyes';
 							$statusMsg = '+' . $bonus . '!';
 							$statusTimer = 25;
+							voice(2, 'chomp');
+							sound(480 + $eatCombo * 140, 180, 2);
 						} else {
 							$lives--;
 							$lifeLost = true;
+							play("T250 O5 L16 B A# A G# G F# F E D# D C# C < B8 G8 C8", 3, false);
 							break;
 						}
 					}
@@ -700,6 +734,11 @@ if (!function_exists('pacman_demo')) {
 			}
 		}
 
+		sound_stop();
+		for ($c = 0; $c < 6; $c++) {
+			voice($c, 'lead');
+		}
+		pencolor(15);
 		if (screen_mode()) {
 			screen(0);
 		}

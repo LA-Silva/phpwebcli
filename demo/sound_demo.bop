@@ -1,0 +1,91 @@
+<?bop
+/**
+ * sound_demo.bop — Showcase of BOP's 9-channel AdLib-style FM sound synthesizer.
+ *
+ * Uses:
+ *   voice(), sound(), play(), note_on(), note_off(), sound_stop(), volume().
+ *
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('demo/sound_demo.bop');
+ *   include 'demo/sound_demo.bop';
+ */
+
+if (!function_exists('sound_demo')) {
+	function sound_demo($wait = true) {
+		echo "=== BOP AdLib FM Synthesizer Demo ===\n";
+		echo "Available presets: " . join(', ', voice()) . "\n";
+		echo "Master volume: " . volume() . "%\n\n";
+
+		volume(80);
+
+		// 1. Arcade SFX showcase with sound() & voice()
+		echo "[1/4] Retro FM Arcade SFX (laser, coin, chomp, boom)...\n";
+		voice(0, 'laser');
+		sound(880, 140, 0, $wait);
+		if ($wait) usleep(100000);
+
+		voice(1, 'coin');
+		sound('B5', 90, 1, $wait);
+		sound('E6', 220, 1, $wait);
+		if ($wait) usleep(100000);
+
+		voice(2, 'chomp');
+		sound(320, 90, 2, $wait);
+		sound(480, 90, 2, $wait);
+		if ($wait) usleep(100000);
+
+		voice(3, 'boom');
+		sound(110, 320, 3, $wait);
+		if ($wait) usleep(150000);
+
+		// 2. Polyphonic 3-note AdLib FM chord with note_on() / note_off()
+		echo "[2/4] Polyphonic FM chord (organ + brass + bass) via note_on()/note_off()...\n";
+		voice(0, 'bass');
+		voice(1, 'organ');
+		voice(2, 'brass');
+		note_on(0, 'C3', 95);
+		note_on(1, 'E4', 80);
+		note_on(2, 'G4', 85);
+		if ($wait) usleep(650000);
+		note_off(0);
+		note_off(1);
+		note_off(2);
+		if ($wait) usleep(150000);
+
+		// 3. Multi-channel MML track with play(): FM bassline + lead melody
+		echo "[3/4] Multi-channel MML arpeggio + melody via play()...\n";
+		voice(0, 'bass');
+		voice(1, 'lead');
+		voice(2, 'bell');
+		play("T148 O3 L8 C C G G A A G4 F F E E D D C4", 0, false);
+		play("T148 O5 L8 E4 G4 > C4 < B4 A4 G4 E4 C4", 1, $wait);
+
+		// 4. Custom FM operator patch + volume fade demo
+		echo "[4/4] Custom 2-operator FM bell patch & volume fade...\n";
+		voice(4, [
+			'modWave' => 'sine',
+			'carWave' => 'abssine',
+			'modMult' => 4,
+			'carMult' => 1,
+			'modIndex' => 3.6,
+			'modDecay' => 0.45,
+			'attack' => 0.005,
+			'decay' => 0.45,
+			'sustain' => 0.15,
+			'release' => 0.25
+		]);
+		play("T140 O5 L8 C E G > C < G E C2", 4, $wait);
+
+		volume(80);
+		sound_stop();
+		for ($c = 0; $c < 5; $c++) {
+			voice($c, 'lead');
+		}
+		echo "AdLib demo complete!\n";
+		return true;
+	}
+}
+
+if (!isset($sound_no_autorun) || !$sound_no_autorun) {
+	sound_demo();
+}

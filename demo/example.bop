@@ -4,7 +4,7 @@
  * custom CLI functions available in this release.
  *
  * How to run from the browser BOP CLI (bop > prompt):
- *   $includeBop('example.bop');
+ *   $includeBop('demo/example.bop');
  */
 
 echo "=== 1. Output & Tags ===\n";
@@ -284,7 +284,7 @@ echo "Screen size: " . screen_columns() . " columns x " . screen_lines() . " lin
 //   cls();                      // clear screen / reset cursor to (1,1)
 //   locate(5, 10); echo "Hi!";  // BASIC-style (row, col)
 //   screen_mode(false);         // return to REPL (or press ESC)
-//   $includeBop('screen_demo.bop'); // full interactive screen demo
+//   $includeBop('demo/screen_demo.bop'); // full interactive screen demo
 
 echo "\n=== 17. Introspection: get_defined_functions() ===\n";
 $definedFns = get_defined_functions();
@@ -300,5 +300,6 @@ include 'test/unit_test_math.bop';
 include 'test/unit_test_array.bop';
 include 'test/unit_test_sqlite.bop';
 include 'test/unit_test_screen.bop';
+include 'test/unit_test_sound.bop';
 
 echo "\nDone! Try running individual snippets right at the bop > prompt.\n";
