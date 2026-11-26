@@ -77,13 +77,17 @@
 - [x] `include` / `include_once`
 - [x] `require` / `require_once`
 - [x] `eval()`
+- [x] ANSI C-style file-scoped preprocessor (`lib/bop_preprocessor.js`): `#define` (object/function/variadic/`#`/`##`/`\` continuation), `#undef`, `#ifdef`/`#ifndef`/`#if`/`#elif`/`#else`/`#endif`, `#include` (VFS & server), `#pragma once`, `#error`/`#warning`, `__BOP__`/`__DATE__`/`__TIME__`, and `preprocess($code, $defines)` built-in
 - [x] Clean missing-file errors (`File not found`) on HTTP 404 or HTML fallback in `include` / `require` and `$includeBop()` (`server.js`, `index.html`)
 
 ## Implemented Runtime, Standard Library & Tools
 
 ### Browser Runtime & Interactive Shell
 - [x] Standalone pure-JS BOP lexer, parser & async interpreter (`lib/bop_engine.js`) replacing Uniter
-- [x] Modular JS runtime architecture (`lib/bop_engine.js`, `lib/vfs.js`, `lib/minisql.js`, `lib/screen_buffer.js`, `lib/adlib.js`, `lib/bop_bridge.js`)
+- [x] MS-DOS style two-stage boot architecture: `config.bop` (system configuration, env vars, `include_path`, and `lib/*.bop` driver loader) -> `autoexec.bop` (user startup banner, self-tests, prompt, and login), with VFS override persistence (`edit("/config.bop")`, `edit("/autoexec.bop")`) and warm `reboot()`
+- [x] Real environment variable store (`putenv()`, `getenv()`, DOS-style `set()`), customizable `prompt()`, and `include_path` resolution
+- [x] Irreversible salted cryptographic password hashing (`password_hash()`, `password_verify()` via PBKDF2-HMAC-SHA-256, `hash()`, `hash_hmac()`, `hash_equals()`) storing `PASSWORD_HASH` in env during `autoexec.bop` login
+- [x] Modular JS runtime architecture (`lib/bop_preprocessor.js`, `lib/bop_engine.js`, `lib/vfs.js`, `lib/minisql.js`, `lib/screen_buffer.js`, `lib/adlib.js`, `lib/bop_editor.js`, `lib/bop_bridge.js`)
 - [x] Serialized interactive terminal input queue (`$io->read()`, `$io->readline()`, `myinput($prompt, $secret)`)
 - [x] Terminal masking helpers (`$maskaan()`, `$maskuit()`) and exposed globals (`$term`, `$jQuery`, `$bridge`, `$meta`, `$includeBop()`)
 - [x] BOP-only engine branding (`bopversion()`, `bop_uname()`, `BOP_*` constants, `bop >` prompt, `.bop` extensions, `bopwebcli_vfs_v1`)
@@ -133,4 +137,4 @@
 ### Documentation, Examples & Standalone Unit Tests
 - [x] Interactive feature showcase in `demo/example.bop`
 - [x] Complete grouped command reference with explanations and examples in `LANGUAGE.md`
-- [x] Standalone memory-clean unit test scripts (`test/unit_test_string.bop`, `test/unit_test_date.bop`, `test/unit_test_cron.bop`, `test/unit_test_file.bop`, `test/unit_test_math.bop`, `test/unit_test_array.bop`, `test/unit_test_sqlite.bop`, `test/unit_test_screen.bop`, `test/unit_test_sound.bop`)
+- [x] Standalone memory-clean unit test scripts (`test/unit_test_string.bop`, `test/unit_test_date.bop`, `test/unit_test_cron.bop`, `test/unit_test_file.bop`, `test/unit_test_math.bop`, `test/unit_test_array.bop`, `test/unit_test_sqlite.bop`, `test/unit_test_screen.bop`, `test/unit_test_sound.bop`, `test/unit_test_preprocessor.bop`, `test/unit_test_boot.bop`)

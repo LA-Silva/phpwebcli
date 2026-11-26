@@ -1,0 +1,157 @@
+<?bop
+# Ordinary BOP hash comment must remain a comment and not trigger directives
+#define PP_CONST 42
+#define PP_SQR(x) ((x) * (x))
+#define PP_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define PP_STR(x) #x
+#define PP_PASTE(a, b) a ## b
+#define PP_VAR(n) $pp_val_ ## n
+#define PP_FMT(fmt, ...) sprintf(fmt, ##__VA_ARGS__)
+#define PP_MULTILINE(a, b) \
+	((a) + (b) * 10)
+#define PP_VER 0x02
+
+#define PP_TEMP 99
+#undef PP_TEMP
+
+return call_user_func(function($verbose) {
+	// 1. Object-like #define & #undef
+	$objMacroOk = (PP_CONST === 42);
+#ifdef PP_TEMP
+	$undefOk = false;
+#else
+	$undefOk = true;
+#endif
+
+	// 2. Function-like macros, nested calls, and commas inside parens
+	$sqrVal = PP_SQR(3 + 4);
+	$maxVal = PP_MAX(hypot(3, 4), 2);
+	$multiVal = PP_MULTILINE(5, 3);
+
+	// 3. Stringification (#x) and token pasting (##)
+	$strVal = PP_STR(hello   world);
+	PP_VAR(alpha) = 123;
+	$pastedVar = $pp_val_alpha;
+	$pastedNum = PP_PASTE(10, 24);
+
+	// 4. Variadic macros (__VA_ARGS__ and , ##__VA_ARGS__ comma elision)
+	$vaEmpty = PP_FMT("plain");
+	$vaTwo = PP_FMT("%s=%d", "x", 7);
+
+	// 5. BOP-safe expansion: $var, strings, and $obj->PROP are never expanded
+	$PP_CONST = 500;
+	$obj = new stdClass();
+	$obj->PP_CONST = 600;
+	$strLit1 = 'PP_CONST';
+	$strLit2 = "PP_CONST";
+	$bopSafeOk = ($PP_CONST === 500 && $obj->PP_CONST === 600 && $strLit1 === 'PP_CONST' && $strLit2 === 'PP_CONST');
+
+	// 6. Conditional compilation (#if / #elif / #else / #endif / defined() / nested)
+	$branch = 0;
+#if defined(PP_CONST) && (PP_VER == 2) && (UNDEF_IDENT == 0) && ((1 << 3) == 8)
+	#ifndef PP_TEMP
+		$branch = 1;
+	#else
+		$branch = 2;
+	#endif
+#elif 1
+	$branch = 3;
+#else
+	$branch = 4;
+#endif
+
+	$elifBranch = 0;
+#if 0
+	$elifBranch = 1;
+#elif (PP_CONST > 100) ? 1 : 0
+	$elifBranch = 2;
+#elif (PP_CONST == 42)
+	$elifBranch = 3;
+#else
+	$elifBranch = 4;
+#endif
+
+	// 7. Predefined C-style macros (__BOP__, __DATE__, __TIME__)
+	$preBop = __BOP__;
+	$preDate = __DATE__;
+	$preTime = __TIME__;
+	$predefOk = ($preBop === 1 && len($preDate) === 11 && len($preTime) === 8 && substr($preTime, 2, 1) === ':' && substr($preTime, 5, 1) === ':');
+
+	// 8. Self-referential hide-set protection & preprocess() built-in with defines
+	$selfExpanded = trim(preprocess("#define SELF (SELF + 1)\nSELF"));
+	$customExpanded = trim(preprocess("#ifdef MODE_FAST\n\$r = SCALE * 2;\n#else\n\$r = 0;\n#endif", ['MODE_FAST' => 1, 'SCALE' => 15]));
+
+	// 9. File-scoped isolation & #include / #pragma once via VFS
+	$base = '/tmp/bop_pp_test';
+	if (!is_dir('/tmp')) mkdir('/tmp');
+	if (!is_dir($base)) mkdir($base);
+
+	// Header with #pragma once: defines macro & increments counter once even when #included twice
+	$hdrPath = $base . '/defs.bop';
+	file_put_contents($hdrPath, "<?bop\n#pragma once\n#define HDR_OFFSET 100\n#define HDR_ADD(x) ((x) + HDR_OFFSET)\n\$pp_hdr_loads++;\n");
+
+	// Translation unit A: uses #include twice (second must be skipped by #pragma once) & defines LOCAL_ONLY
+	$unitAPath = $base . '/unit_a.bop';
+	file_put_contents($unitAPath, "<?bop\n#define LOCAL_ONLY 777\n#include \"defs.bop\"\n#include \"defs.bop\"\nreturn [HDR_ADD(23), LOCAL_ONLY];\n");
+
+	// Translation unit B: separate runtime include() must NOT see PP_CONST or LOCAL_ONLY (C file-scoped!)
+	$unitBPath = $base . '/unit_b.bop';
+	file_put_contents($unitBPath, "<?bop\n#if defined(PP_CONST) || defined(LOCAL_ONLY) || defined(HDR_OFFSET)\nreturn 'LEAKED';\n#else\nreturn 'ISOLATED';\n#endif\n");
+
+	$pp_hdr_loads = 0;
+	$resA = include $unitAPath;
+	$resB = include $unitBPath;
+
+	// Clean up VFS temp files
+	@unlink($hdrPath);
+	@unlink($unitAPath);
+	@unlink($unitBPath);
+	@rmdir($base);
+
+	// 10. #error directive raises BOP Preprocessor error (catchable via try/catch)
+	$errorCaught = false;
+	try {
+		eval("#error deliberate_stop\n");
+	} catch (Exception $e) {
+		$errorCaught = (strpos($e->getMessage(), 'deliberate_stop') !== false);
+	}
+
+	// 11. eval() with line-1 directive
+	$evalRes = eval("#define E_VAL 88\nreturn E_VAL + 12;");
+
+	$cases = [
+		['#define object-like macro and #undef work as expected', $objMacroOk && $undefOk, true],
+		['function-like macros, nested expressions, and backslash continuations expand accurately', $sqrVal === 49 && $maxVal === 5.0 && $multiVal === 35, true],
+		['stringification (#x) and token pasting (##) work with literals and $variables', $strVal === 'hello world' && $pastedVar === 123 && $pastedNum === 1024, true],
+		['variadic macros (__VA_ARGS__ and , ##__VA_ARGS__) handle empty and multi-arg calls', $vaEmpty === 'plain' && $vaTwo === 'x=7', true],
+		['BOP-safe expansion preserves $variables, string literals, and $obj->properties', $bopSafeOk, true],
+		['#if / #elif / #else / #endif evaluate C expressions, defined(), shifts, and nested guards', $branch === 1 && $elifBranch === 3, true],
+		['predefined macros __BOP__, __DATE__, and __TIME__ expand cleanly', $predefOk, true],
+		['self-referential macros do not loop infinitely and preprocess($code, $defines) expands code', $selfExpanded === '(SELF + 1)' && $customExpanded === '$r = 15 * 2;', true],
+		['#include "defs.bop" shares macros into translation unit and #pragma once prevents double inclusion', is_array($resA) && $resA[0] === 123 && $resA[1] === 777 && $pp_hdr_loads === 1, true],
+		['file-scoped isolation prevents macros from leaking across separate runtime include() files', $resB === 'ISOLATED', true],
+		['#error aborts preprocessing with error message and eval() supports line-1 directives', $errorCaught && $evalRes === 100, true],
+	];
+
+	$passed = 0;
+	$failed = 0;
+
+	foreach ($cases as $case) {
+		$label = $case[0];
+		$actual = $case[1];
+		$expected = $case[2];
+
+		if ($actual === $expected) {
+			$passed++;
+			if ($verbose) {
+				echo "[PASS] " . $label . "\n";
+			}
+		} else {
+			$failed++;
+			echo "[FAIL] " . $label . " => got " . var_export($actual, true) . ", expected " . var_export($expected, true) . "\n";
+		}
+	}
+
+	echo "unit_test_preprocessor.bop: " . $passed . "/" . count($cases) . " passed\n";
+	return $failed === 0;
+}, isset($unit_test_verbose) && $unit_test_verbose);

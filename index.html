@@ -405,7 +405,8 @@
     <script src="./assets/jquery.terminal.min.js"></script>
     <script src="./assets/prism.js"></script>
 
-    <!-- 4. Standalone Pure-JS BOP Engine -->
+    <!-- 4. Standalone Pure-JS BOP Engine (with ANSI C-Style File-Scoped Preprocessor) -->
+    <script src="./lib/bop_preprocessor.js"></script>
     <script src="./lib/bop_engine.js"></script>
 
     <!-- 5. App Runtime Modules (VFS, SQLite/PDO, 2D Screen Buffer, BOP Bridge) -->
@@ -482,7 +483,8 @@
                 screenBuffer: screenBuffer,
                 adlib: adlib,
                 bopEditor: bopEditor,
-                getTerm: function() { return term; }
+                getTerm: function() { return term; },
+                onReboot: function() { return bootSystem(); }
             });
 
             bop.expose(appBridge, 'bridge');
@@ -542,6 +544,13 @@
             });
 
             async function includeBop(url) {
+                if (vfs.isFile(url)) {
+                    const vfsCode = vfs.readFile(url);
+                    const vfsSrc = /<\?(?:bop|=)/i.test(vfsCode) ? vfsCode : ('<?bop ' + vfsCode);
+                    return bop.execute(vfsSrc, url).fail(function(err) {
+                        term.error(formatBopError(err.message || String(err)));
+                    });
+                }
                 const res = await fetch(url);
                 const contentType = (res.headers && res.headers.get('content-type')) || '';
                 if (!res.ok || (!/\.html?(\?|#|$)/i.test(String(url)) && contentType.toLowerCase().includes('text/html'))) {
@@ -553,6 +562,24 @@
                 return bop.execute(src, url).fail(function(err) {
                     term.error(formatBopError(err.message || String(err)));
                 });
+            }
+
+            async function runBootFile(rootName) {
+                const vfsPath = '/' + rootName;
+                if (vfs.isFile(vfsPath)) {
+                    const vfsCode = vfs.readFile(vfsPath);
+                    const vfsSrc = /<\?(?:bop|=)/i.test(vfsCode) ? vfsCode : ('<?bop ' + vfsCode);
+                    return bop.execute(vfsSrc, vfsPath).fail(function(err) {
+                        term.error(formatBopError(err.message || String(err)));
+                    });
+                }
+                return includeBop(rootName);
+            }
+
+            async function bootSystem() {
+                await runBootFile('config.bop');
+                await runBootFile('autoexec.bop');
+                return true;
             }
 
             // Expose terminal/DOM/include/mask helpers to BOP
@@ -655,26 +682,8 @@
                 }
             }, 'io');
 
-            // Boot BOP standard library modules sequentially
-            includeBop('lib/strings.bop').then(function() {
-                return includeBop('lib/dates.bop');
-            }).then(function() {
-                return includeBop('lib/cron.bop');
-            }).then(function() {
-                return includeBop('lib/files.bop');
-            }).then(function() {
-                return includeBop('lib/math.bop');
-            }).then(function() {
-                return includeBop('lib/arrays.bop');
-            }).then(function() {
-                return includeBop('lib/sqlite.bop');
-            }).then(function() {
-                return includeBop('lib/screen.bop');
-            }).then(function() {
-                return includeBop('lib/sound.bop');
-            }).then(function() {
-                return includeBop('lib/stdlib.bop');
-            });
+            // MS-DOS style boot sequence: config.bop (system/drivers) -> autoexec.bop (startup)
+            bootSystem();
         });
     </script>
 </body>

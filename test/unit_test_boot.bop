@@ -1,0 +1,120 @@
+<?bop
+return call_user_func(function($verbose) {
+	// 1. putenv() / getenv() environment variables
+	$putOk = putenv('BOP_TEST_VAR=hello_dos');
+	$getOk = (getenv('BOP_TEST_VAR') === 'hello_dos');
+	putenv('BOP_TEST_VAR=updated_val');
+	$updateOk = (getenv('BOP_TEST_VAR') === 'updated_val');
+	$allEnv = getenv();
+	$listOk = is_array($allEnv) && isset($allEnv['BOP_TEST_VAR']) && $allEnv['BOP_TEST_VAR'] === 'updated_val';
+	putenv('BOP_TEST_VAR');
+	$delOk = (getenv('BOP_TEST_VAR') === false);
+
+	// 2. MS-DOS style set() helper
+	$setWriteOk = set('BOP_SET_TEST=42');
+	$setReadOk = (set('BOP_SET_TEST') === '42');
+	$setAll = set();
+	$setAllOk = is_array($setAll) && isset($setAll['BOP_SET_TEST']) && $setAll['BOP_SET_TEST'] === '42';
+	putenv('BOP_SET_TEST');
+
+	// 3. prompt() getter/setter (restore original prompt afterward)
+	$origPrompt = prompt();
+	$newPrompt = prompt('C:\\BOP> ');
+	$readPrompt = prompt();
+	$envPrompt = getenv('PROMPT');
+	prompt($origPrompt);
+	$promptOk = ($newPrompt === 'C:\\BOP> ' && $readPrompt === 'C:\\BOP> ' && $envPrompt === 'C:\\BOP> ' && prompt() === $origPrompt);
+
+	// 4. config.bop system configuration & drivers loaded
+	$configEnvOk = (
+		getenv('OS') === 'BOP-DOS' &&
+		getenv('BOP_BOOT_CONFIG') === '/config.bop' &&
+		getenv('BOP_BOOT_AUTOEXEC') === '/autoexec.bop' &&
+		getenv('TEMP') === '/tmp' &&
+		is_dir('/tmp')
+	);
+	$driversOk = (
+		function_exists('len') &&
+		function_exists('sysdate') &&
+		function_exists('cron') &&
+		function_exists('edit') &&
+		function_exists('hypot') &&
+		function_exists('array_chunk') &&
+		class_exists('SQLite3') &&
+		function_exists('screen') &&
+		function_exists('sound') &&
+		function_exists('myinput') &&
+		function_exists('prompt') &&
+		function_exists('set') &&
+		function_exists('reboot')
+	);
+
+	// 5. include_path configured by config.bop resolves relative VFS includes
+	$origIncPath = get_include_path();
+	$incDir = '/tmp/bop_inc_path_test';
+	if (!is_dir($incDir)) mkdir($incDir);
+	file_put_contents($incDir . '/path_mod.bop', "<?bop return 'FOUND_VIA_PATH';\n");
+	set_include_path($origIncPath . ':' . $incDir);
+	$incPathRes = include 'path_mod.bop';
+	set_include_path($origIncPath);
+	@unlink($incDir . '/path_mod.bop');
+	@rmdir($incDir);
+
+	// 6. config.bop and autoexec.bop exist and are readable via cat()
+	$cfgSrc = cat('config.bop', true);
+	$autoSrc = cat('autoexec.bop', true);
+	$bootFilesReadable = (
+		is_string($cfgSrc) && strpos($cfgSrc, 'config.bop') !== false &&
+		is_string($autoSrc) && strpos($autoSrc, 'autoexec.bop') !== false
+	);
+
+	// 7. One-way salted password hashing & SHA-256 / HMAC / constant-time equality
+	$shaEmpty = hash('sha256', '');
+	$shaAbc = hash('sha256', 'abc');
+	$hmacTest = hash_hmac('sha256', 'hello', 'secret');
+	$eqOk = hash_equals('abc123', 'abc123') && !hash_equals('abc123', 'abc124');
+
+	$pw1 = password_hash('my_secret_pw', PASSWORD_DEFAULT, ['iterations' => 10000]);
+	$pw2 = password_hash('my_secret_pw', PASSWORD_DEFAULT, ['iterations' => 10000]);
+	$saltedUnique = ($pw1 !== $pw2 && strpos($pw1, '$pbkdf2-sha256$i=10000$') === 0 && strpos($pw1, 'my_secret_pw') === false);
+	$prevPwHash = getenv('PASSWORD_HASH');
+	putenv('PASSWORD_HASH=' . $pw1);
+	$envPwMatch = password_verify('my_secret_pw', getenv('PASSWORD_HASH'));
+	$envPwReject = !password_verify('wrong_pw', getenv('PASSWORD_HASH'));
+	if ($prevPwHash === false) putenv('PASSWORD_HASH');
+	else putenv('PASSWORD_HASH=' . $prevPwHash);
+
+	$cases = [
+		['putenv() and getenv() set, update, list, and unset environment variables', $putOk && $getOk && $updateOk && $listOk && $delOk, true],
+		['set() provides MS-DOS style environment variable access', $setWriteOk && $setReadOk && $setAllOk, true],
+		['prompt() reads and updates shell prompt and syncs PROMPT env var', $promptOk, true],
+		['config.bop initializes BOP-DOS environment, /tmp, and boot variables', $configEnvOk, true],
+		['config.bop loads all standard library drivers and core shell helpers', $driversOk, true],
+		['include_path set by config.bop resolves relative include files', strpos($origIncPath, 'lib') !== false && $incPathRes === 'FOUND_VIA_PATH', true],
+		['config.bop and autoexec.bop are present and inspectable via cat()', $bootFilesReadable, true],
+		['hash(), hash_hmac(), and hash_equals() match standard SHA-256 test vectors', $shaEmpty === 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' && $shaAbc === 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' && len($hmacTest) === 64 && $eqOk, true],
+		['password_hash() uses unique random salt per call and password_verify() validates PASSWORD_HASH env var', $saltedUnique && $envPwMatch && $envPwReject, true],
+	];
+
+	$passed = 0;
+	$failed = 0;
+
+	foreach ($cases as $case) {
+		$label = $case[0];
+		$actual = $case[1];
+		$expected = $case[2];
+
+		if ($actual === $expected) {
+			$passed++;
+			if ($verbose) {
+				echo "[PASS] " . $label . "\n";
+			}
+		} else {
+			$failed++;
+			echo "[FAIL] " . $label . " => got " . var_export($actual, true) . ", expected " . var_export($expected, true) . "\n";
+		}
+	}
+
+	echo "unit_test_boot.bop: " . $passed . "/" . count($cases) . " passed\n";
+	return $failed === 0;
+}, isset($unit_test_verbose) && $unit_test_verbose);

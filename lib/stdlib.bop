@@ -1,75 +1,47 @@
 <?bop
-echo "        CCCCCCCCCCCCCYYYYYYY       YYYYYYYBBBBBBBBBBBBBBBBB   EEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRR   \n";
-echo "     CCC::::::::::::CY:::::Y       Y:::::YB::::::::::::::::B  E::::::::::::::::::::ER::::::::::::::::R  \n";
-echo "   CC:::::::::::::::CY:::::Y       Y:::::YB::::::BBBBBB:::::B E::::::::::::::::::::ER::::::RRRRRR:::::R \n";
-echo "  C:::::CCCCCCCC::::CY::::::Y     Y::::::YBB:::::B     B:::::BEE::::::EEEEEEEEE::::ERR:::::R     R:::::R\n";
-echo " C:::::C       CCCCCCYYY:::::Y   Y:::::YYY  B::::B     B:::::B  E:::::E       EEEEEE  R::::R     R:::::R\n";
-echo "C:::::C                 Y:::::Y Y:::::Y     B::::B     B:::::B  E:::::E               R::::R     R:::::R\n";
-echo "C:::::C                  Y:::::Y:::::Y      B::::BBBBBB:::::B   E::::::EEEEEEEEEE     R::::RRRRRR:::::R \n";
-echo "C:::::C                   Y:::::::::Y       B:::::::::::::BB    E:::::::::::::::E     R:::::::::::::RR  \n";
-echo "C:::::C                    Y:::::::Y        B::::BBBBBB:::::B   E:::::::::::::::E     R::::RRRRRR:::::R \n";
-echo "C:::::C                     Y:::::Y         B::::B     B:::::B  E::::::EEEEEEEEEE     R::::R     R:::::R\n";
-echo "C:::::C                     Y:::::Y         B::::B     B:::::B  E:::::E               R::::R     R:::::R\n";
-echo " C:::::C       CCCCCC       Y:::::Y         B::::B     B:::::B  E:::::E       EEEEEE  R::::R     R:::::R\n";
-echo "  C:::::CCCCCCCC::::C       Y:::::Y       BB:::::BBBBBB::::::BEE::::::EEEEEEEE:::::ERR:::::R     R:::::R\n";
-echo "   CC:::::::::::::::C    YYYY:::::YYYY    B:::::::::::::::::B E::::::::::::::::::::ER::::::R     R:::::R\n";
-echo "     CCC::::::::::::C    Y:::::::::::Y    B::::::::::::::::B  E::::::::::::::::::::ER::::::R     R:::::R\n";
-echo "        CCCCCCCCCCCCC    YYYYYYYYYYYYY    BBBBBBBBBBBBBBBBB   EEEEEEEEEEEEEEEEEEEEEERRRRRRRR     RRRRRRR\n";
-echo " \n";
-echo "VVVVVVVV           VVVVVVVVPPPPPPPPPPPPPPPPP      SSSSSSSSSSSSSSS \n";
-echo "V::::::V           V::::::VP::::::::::::::::P   SS:::::::::::::::S\n";
-echo "V::::::V           V::::::VP::::::PPPPPP:::::P S:::::SSSSSS::::::S\n";
-echo "V::::::V           V::::::VPP:::::P     P:::::PS:::::S     SSSSSSS\n";
-echo " V:::::V           V:::::V   P::::P     P:::::PS:::::S            \n";
-echo "  V:::::V         V:::::V    P::::P     P:::::PS:::::S            \n";
-echo "   V:::::V       V:::::V     P::::PPPPPP:::::P  S::::SSSS         \n";
-echo "    V:::::V     V:::::V      P:::::::::::::PP    SS::::::SSSSS    \n";
-echo "     V:::::V   V:::::V       P::::PPPPPPPPP        SSS::::::::SS  \n";
-echo "      V:::::V V:::::V        P::::P                   SSSSSS::::S \n";
-echo "       V:::::V:::::V         P::::P                        S:::::S\n";
-echo "        V:::::::::V          P::::P                        S:::::S\n";
-echo "         V:::::::V         PP::::::PP          SSSSSSS     S:::::S\n";
-echo "          V:::::V          P::::::::P          S::::::SSSSSS:::::S\n";
-echo "           V:::V           P::::::::P          S:::::::::::::::SS \n";
-echo "            VVV            PPPPPPPPPP           SSSSSSSSSSSSSSS   \n";
+// Core interactive shell helpers loaded by config.bop.
+// Startup banner, self-tests, and login prompts now live in /config.bop and /autoexec.bop.
 
-function myinput($arg1, $secret = false) {
-	global $io;
-	return $io->read($arg1, $secret);
+if (!function_exists('myinput')) {
+	function myinput($arg1, $secret = false) {
+		global $io;
+		return $io->read($arg1, $secret);
+	}
 }
 
+if (!function_exists('prompt')) {
+	function prompt($text = null) {
+		global $bridge;
+		if ($text === null) {
+			return $bridge->getPrompt();
+		}
+		$p = $bridge->setPrompt((string) $text);
+		putenv('PROMPT=' . $p);
+		return $p;
+	}
+}
 
-$unit_test_verbose = true;
-include 'test/unit_test_string.bop';
-include 'test/unit_test_date.bop';
-include 'test/unit_test_cron.bop';
-include 'test/unit_test_file.bop';
-include 'test/unit_test_math.bop';
-include 'test/unit_test_array.bop';
-include 'test/unit_test_sqlite.bop';
-include 'test/unit_test_screen.bop';
-include 'test/unit_test_sound.bop';
-unset($unit_test_verbose);
+if (!function_exists('set')) {
+	// MS-DOS style SET helper:
+	//   set()            -> returns associative array of all environment variables
+	//   set('KEY=VALUE') -> sets environment variable KEY to VALUE
+	//   set('KEY')       -> returns value of KEY (or false if unset)
+	function set($expr = null) {
+		if ($expr === null) {
+			return getenv();
+		}
+		$s = (string) $expr;
+		if (strpos($s, '=') !== false) {
+			return putenv($s);
+		}
+		return getenv($s);
+	}
+}
 
-$loginname = myinput("Login:");
-echo "hello " . $loginname . "\n";
-
-$passwd = myinput("password:",true);
-echo "you password was:" . $passwd;
-
-//$io->readline("Login: ", function($s) use ($term) { $term->echo("ok"); }, false);
-//$io->readline("Password: ", function($s) use ($term) { $term->echo("ok"); }, true);
-
-//$passwd = myinput("password:");
-//$jQuery('body')->terminal()->set_mask("*");
-//$loginname= myinput("login:");
-
-
-
-
-
-
-
-
-
-
+if (!function_exists('reboot')) {
+	// Re-executes /config.bop followed by /autoexec.bop (MS-DOS warm reboot)
+	function reboot() {
+		global $bridge;
+		return $bridge->reboot();
+	}
+}

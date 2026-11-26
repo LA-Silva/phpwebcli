@@ -50,6 +50,23 @@ Standard BOP syntax supported in the `bop >` REPL and `.bop` script files.
 
 > **Runtime Notes:** `var_dump()` accepts one argument per call, `xor` is not supported, `...$args` variadic syntax is unsupported (use `func_get_args()`), and method default parameters cannot reference class constants directly.
 
+### ANSI C-Style File-Scoped Preprocessor (`lib/bop_preprocessor.js`)
+
+Every BOP file, `include`/`require`, `eval()`, and REPL command is preprocessed as an independent **file-scoped translation unit** before lexing and parsing. Macros never leak across separate files unless explicitly pulled in via `#include`. Ordinary BOP `# comments` remain untouched, and macro expansion safely skips `$variables`, string literals, comments, and `$obj->properties`.
+
+| Directive / Helper | Description | Example |
+|---|---|---|
+| `#define NAME value` | Defines an object-like macro (supports `\` line continuation). | `#define MAX_SPEED 120` |
+| `#define FN(a, b) expr` | Defines a function-like macro (no space before `(`); supports `#param` stringification, `a ## b` token pasting, and variadic `...` / `__VA_ARGS__` (with `, ##__VA_ARGS__` comma elision). | `#define SQR(x) ((x) * (x))` |
+| `#undef NAME` | Undefines a previously defined macro in the current translation unit. | `#undef DEBUG` |
+| `#ifdef NAME` / `#ifndef NAME` | Conditionally compiles code depending on whether `NAME` is defined. | `#ifdef DEBUG` |
+| `#if expr` / `#elif expr` / `#else` / `#endif` | Evaluates ANSI C constant integer expressions (`defined(X)`, hex/oct/bin/char literals, arithmetic, bitwise, logical, shifts, `?:`; undefined identifiers evaluate to `0`). | `#if defined(VER) && (VER >= 2)` |
+| `#include "file.bop"` / `#include <file.bop>` | Textually includes a header from VFS or server into the current translation unit, sharing its macros (strips outer `<?bop` / `?>` tags). | `#include "defs.bop"` |
+| `#pragma once` | Ensures a `#include`d header is processed at most once per translation unit. | `#pragma once` |
+| `#error msg` / `#warning msg` | Aborts preprocessing with an error or emits a BOP warning. | `#error Missing CONFIG` |
+| `__BOP__`, `__DATE__`, `__TIME__` | Predefined C-style macros (`1`, `"Mmm dd yyyy"`, `"hh:mm:ss"`). | `echo __DATE__;` |
+| `preprocess($code, $defines = null)` | Built-in function returning the preprocessed BOP source string (accepts optional associative array of pre-defined macros). | `echo preprocess("#define X 5\necho X;");` |
+
 ---
 
 ## 2. Strings & Text Formatting
@@ -458,6 +475,9 @@ Special BOP variables exposed by `index.html` and `lib/stdlib.bop` to connect BO
 | `$io->read($prompt, $secret = false)` | Prompts the user for terminal input synchronously in async BOP mode; masks with `*` if `$secret` is `true`. | `$name = $io->read("Name: ");` |
 | `$io->readline($prompt, $cb = null, $secret = false)` | Non-blocking or promise-based line reader with optional callback `function($line)`. | `$io->readline("Cmd: ", function($s){ echo $s; });` |
 | `myinput($prompt, $secret = false)` | Convenience wrapper around `$io->read()` defined in `lib/stdlib.bop`. | `$pw = myinput("Password: ", true);` |
+| `prompt($text = null)` | Gets or sets the interactive terminal prompt string (MS-DOS `PROMPT` equivalent) and syncs `PROMPT` env var. | `prompt("C:\\BOP> ");` |
+| `set($expr = null)` | MS-DOS `SET` helper: lists all env vars (`null`), reads a var (`"PATH"`), or sets one (`"KEY=VALUE"`). | `set("USER=admin"); echo set("USER");` |
+| `reboot()` | Performs an MS-DOS style warm reboot, re-running `config.bop` then `autoexec.bop` (respecting VFS overrides). | `reboot();` |
 | `$maskaan($arg)` / `$maskuit($arg)` | Enables (`*`) or disables jQuery Terminal input masking (`stdlib` helpers). | `$maskaan(true);` |
 | `$term` | Exposed jQuery Terminal instance (`cols()`, `rows()`, `echo()`, `clear()`, `geometry()`, etc.). | `echo $term->cols() . "x" . $term->rows();` |
 | `$jQuery` | Exposed browser jQuery (`$`) function for DOM querying and CSS styling. | `$jQuery("body")->css("color", "#0f0");` |
@@ -534,7 +554,8 @@ Capture, inspect, discard, or flush stdout inside BOP scripts.
 | Command | Description | Example |
 |---|---|---|
 | `parse_url($url, $component = -1)` | Parses a URL into scheme, host, port, user, pass, path, query, fragment. | `$u = parse_url("https://example.com/a?x=1");` |
-| `getenv($name = null)` | Gets an environment variable if defined in the runtime environment. | `$v = getenv("PATH");` |
+| `getenv($name = null)` | Gets an environment variable (or all env vars as an array when `$name` is omitted), or `false` if unset. | `echo getenv("OS"); // "BOP-DOS"` |
+| `putenv($setting)` | Sets (`"KEY=VALUE"`) or deletes (`"KEY"`) a runtime environment variable. | `putenv("BOP_RUN_TESTS=0");` |
 | `ini_get($option)` | Gets the value of a BOP configuration setting. | `echo ini_get("include_path");` |
 | `ini_set($option, $val)` | Sets a BOP configuration option and returns its old value. | `ini_set("display_errors", "1");` |
 | `get_cfg_var($option)` | Gets a configuration option value from runtime config. | `echo get_cfg_var("include_path");` |
@@ -546,6 +567,11 @@ Capture, inspect, discard, or flush stdout inside BOP scripts.
 | `bop_uname($mode = "a")` | Returns browser/environment system information string. | `echo bop_uname();` |
 | `error_reporting($level = null)` | Gets or sets the active BOP error reporting bitmask. | `error_reporting(E_ALL);` |
 | `trigger_error($msg, $type = E_USER_NOTICE)` | Generates a user-level error, warning, or notice message. | `trigger_error("Check input", E_USER_WARNING);` |
+| `password_hash($pw, $algo = PASSWORD_DEFAULT, $opts = null)` | Computes an irreversible, randomly salted PBKDF2-HMAC-SHA-256 password hash (`100,000` iterations by default). | `putenv('PASSWORD_HASH=' . password_hash($pw));` |
+| `password_verify($pw, $hash)` | Verifies a candidate password against a `password_hash()` digest using constant-time comparison. | `var_dump(password_verify($pw, getenv('PASSWORD_HASH')));` |
+| `hash($algo, $data, $binary = false)` | Computes a cryptographic digest (`sha256`, `sha384`, `sha512`, `sha1`) as lowercase hex or raw bytes. | `echo hash('sha256', 'abc');` |
+| `hash_hmac($algo, $data, $key, $binary = false)` | Computes a keyed HMAC digest (`sha256`, `sha384`, `sha512`, `sha1`). | `echo hash_hmac('sha256', 'msg', 'key');` |
+| `hash_equals($known, $user)` | Constant-time string comparison resistant to timing attacks. | `var_dump(hash_equals($a, $b));` |
 
 ---
 
@@ -593,3 +619,7 @@ Run these scripts directly from the `bop >` prompt with `include '...'` (or `$in
 | `test/unit_test_sqlite.bop` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'test/unit_test_sqlite.bop';` |
 | `test/unit_test_screen.bop` | Runs 22 screen geometry, text framebuffer, `320x200`/`640x400` pixel VRAM, `pencolor()`, `pixel()`, `line()`, `box()`, `circle()`, `screen_save()`, `screen_restore()`, `inkey()`, `keydown()`, and ANSI assertions. | `include 'test/unit_test_screen.bop';` |
 | `test/unit_test_sound.bop` | Runs 9 AdLib FM synthesizer assertions (`sound()`, `voice()`, `play()`, `note_on()`, `note_off()`, `sound_freq()`, `sound_stop()`, `volume()`, MML parser). | `include 'test/unit_test_sound.bop';` |
+| `config.bop` | MS-DOS `CONFIG.SYS` boot script: configures runtime `ini_set`/`include_path`, sets system env vars, loads all `lib/*.bop` drivers, creates `/tmp`, and sets default audio volume. Override persistently via `edit("/config.bop")`. | `edit("/config.bop"); reboot();` |
+| `autoexec.bop` | MS-DOS `AUTOEXEC.BAT` startup script: runs after `config.bop` to set `cd('/')`, apply `prompt()`, display the boot banner, run unit tests (`BOP_RUN_TESTS`), and run the login prompt (`BOP_LOGIN_PROMPT`, storing only an irreversible `PASSWORD_HASH` env var). Override via `edit("/autoexec.bop")`. | `edit("/autoexec.bop"); reboot();` |
+| `test/unit_test_preprocessor.bop` | Runs 11 ANSI C-style file-scoped preprocessor assertions (`#define`, `#undef`, `#if`/`#ifdef`/`#elif`/`#else`/`#endif`, `#`/`##`, variadic `__VA_ARGS__`, `#include`, `#pragma once`, `#error`, file-scope isolation, `preprocess()`). | `include 'test/unit_test_preprocessor.bop';` |
+| `test/unit_test_boot.bop` | Runs 9 MS-DOS boot, `config.bop`/`autoexec.bop`, `putenv()`/`getenv()`, `set()`, `prompt()`, `include_path`, and one-way `password_hash()`/`password_verify()` assertions. | `include 'test/unit_test_boot.bop';` |

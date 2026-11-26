@@ -1,0 +1,45 @@
+<?bop
+// ============================================================================
+// config.bop — System Configuration & Device/Library Loader (MS-DOS CONFIG.SYS)
+// ============================================================================
+// Executed first during boot before autoexec.bop.
+// Customize this file with: edit("/config.bop")  (saved to VFS, overrides default)
+// Reset to default with:    unlink("/config.bop")
+// Re-apply changes with:    reboot()
+// ============================================================================
+
+// 1. Runtime & Search Path Settings
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
+set_include_path('.:lib:demo:/');
+
+// 2. System Environment Variables (MS-DOS SET equivalents)
+putenv('OS=BOP-DOS');
+putenv('BOP_BOOT_CONFIG=/config.bop');
+putenv('BOP_BOOT_AUTOEXEC=/autoexec.bop');
+putenv('PATH=/:/lib:/demo');
+putenv('TEMP=/tmp');
+putenv('TMP=/tmp');
+putenv('PROMPT=bop > ');
+
+// Boot feature toggles (set to '0' to disable on startup)
+putenv('BOP_RUN_TESTS=1');
+putenv('BOP_LOGIN_PROMPT=1');
+
+// 3. Load System Drivers / Standard Library Modules (like DEVICE=... in CONFIG.SYS)
+require_once 'lib/strings.bop';   // String & ASCII banner driver
+require_once 'lib/dates.bop';     // Date, time & Oracle formatters
+require_once 'lib/cron.bop';      // Background cron scheduler
+require_once 'lib/files.bop';     // VFS filesystem & editor commands
+require_once 'lib/math.bop';      // Math, trig, PRNG & base conversion
+require_once 'lib/arrays.bop';    // Array transforms & sorting
+require_once 'lib/sqlite.bop';    // Pure-JS SQLite3 & PDO database engine
+require_once 'lib/screen.bop';    // 2D text & pixel framebuffer driver
+require_once 'lib/sound.bop';     // AdLib 9-channel FM synthesizer driver
+require_once 'lib/stdlib.bop';    // Core shell helpers (myinput, prompt, set, reboot)
+
+// 4. Initialize System Directories & Device Defaults
+if (!is_dir('/tmp')) {
+	mkdir('/tmp');
+}
+volume(80);
