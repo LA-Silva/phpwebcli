@@ -245,3 +245,31 @@ if (!function_exists('ls')) {
 	}
 }
 
+if (!function_exists('cat')) {
+	function cat($filename, $return = false) {
+		global $bridge;
+		$path = (string) $filename;
+		if ($path === '') {
+			trigger_error("cat: empty filename", E_USER_WARNING);
+			return false;
+		}
+		if (is_dir($path)) {
+			trigger_error("cat: " . $path . ": Is a directory", E_USER_WARNING);
+			return false;
+		}
+		$content = $bridge->readTextFile($path);
+		if ($content === false) {
+			trigger_error("cat: " . $path . ": No such file or directory", E_USER_WARNING);
+			return false;
+		}
+		if ($return) {
+			return $content;
+		}
+		echo $content;
+		if (len($content) > 0 && substr($content, -1) !== "\n") {
+			echo "\n";
+		}
+		return true;
+	}
+}
+

@@ -961,7 +961,38 @@
 			},
 			sqlLastInsertRowId: function(connId) { return miniSql.lastInsertRowId(connId); },
 			sqlChanges: function(connId) { return miniSql.changes(connId); },
-			sqlEscape: function(str) { return miniSql.escapeString(str); }
+			sqlEscape: function(str) { return miniSql.escapeString(str); },
+
+			// Read a text file from VFS first, falling back to static server HTTP fetch
+			readTextFile: function(filePath) {
+				const p = String(filePath ?? '').trim();
+				if (!p) {
+					return false;
+				}
+				if (vfs && vfs.isFile(p)) {
+					return vfs.readFile(p);
+				}
+				if (vfs && vfs.isDirectory(p)) {
+					return false;
+				}
+				if (!fetchFn) {
+					return false;
+				}
+				return fetchFn(p)
+					.then(function(res) {
+						if (!res || !res.ok) {
+							return false;
+						}
+						const contentType = (res.headers && res.headers.get('content-type')) || '';
+						if (!/\.html?(\?|#|$)/i.test(p) && contentType.toLowerCase().includes('text/html')) {
+							return false;
+						}
+						return res.text();
+					})
+					.catch(function() {
+						return false;
+					});
+			}
 		};
 
 		if (vfs && typeof globalScope.createVfsBridgeHelpers === 'function') {

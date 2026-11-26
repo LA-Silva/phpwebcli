@@ -1,0 +1,412 @@
+<?bop
+/**
+ * invaders_demo.bop — Playable Space Invaders arcade demo in BOP.
+ *
+ * Uses:
+ *   screen('320x200'), cls(), pencolor(), pixel(), line(), locate(),
+ *   keydown(), inkey(), and usleep().
+ *
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('invaders_demo.bop');
+ *   include 'invaders_demo.bop';
+ *
+ * Controls:
+ *   ArrowLeft / A   Move cannon left
+ *   ArrowRight / D  Move cannon right
+ *   Space           Fire laser
+ *   Q or ESC        Quit back to bop > prompt
+ */
+
+if (!function_exists('__invaders_draw_cannon')) {
+	function __invaders_draw_cannon($x, $y) {
+		pencolor(10);
+		line($x, $y - 5, $x, $y - 3);
+		line($x - 2, $y - 3, $x + 2, $y - 3);
+		line($x - 7, $y - 2, $x + 7, $y - 2);
+		line($x - 8, $y - 1, $x + 8, $y - 1);
+		line($x - 8, $y, $x + 8, $y);
+	}
+}
+
+if (!function_exists('__invaders_draw_alien')) {
+	function __invaders_draw_alien($x, $y, $type, $frame, $color) {
+		pencolor($color);
+		if ($type === 0) {
+			// Squid invader (top row)
+			line($x - 2, $y - 3, $x + 2, $y - 3);
+			line($x - 4, $y - 2, $x + 4, $y - 2);
+			line($x - 4, $y - 1, $x + 4, $y - 1);
+			line($x - 3, $y, $x + 3, $y);
+			pencolor(0);
+			pixel($x - 2, $y - 1);
+			pixel($x + 2, $y - 1);
+			pencolor($color);
+			if ($frame === 0) {
+				pixel($x - 4, $y + 1);
+				pixel($x - 1, $y + 1);
+				pixel($x + 1, $y + 1);
+				pixel($x + 4, $y + 1);
+			} else {
+				pixel($x - 3, $y + 1);
+				pixel($x - 2, $y + 1);
+				pixel($x + 2, $y + 1);
+				pixel($x + 3, $y + 1);
+			}
+		} elseif ($type === 1) {
+			// Crab invader (middle row)
+			pixel($x - 3, $y - 3);
+			pixel($x + 3, $y - 3);
+			line($x - 3, $y - 2, $x + 3, $y - 2);
+			line($x - 5, $y - 1, $x + 5, $y - 1);
+			line($x - 5, $y, $x + 5, $y);
+			pencolor(0);
+			pixel($x - 2, $y - 1);
+			pixel($x + 2, $y - 1);
+			pencolor($color);
+			if ($frame === 0) {
+				line($x - 5, $y + 1, $x - 3, $y + 1);
+				line($x + 3, $y + 1, $x + 5, $y + 1);
+			} else {
+				line($x - 4, $y + 1, $x - 2, $y + 1);
+				line($x + 2, $y + 1, $x + 4, $y + 1);
+			}
+		} else {
+			// Octopus invader (bottom row)
+			line($x - 3, $y - 3, $x + 3, $y - 3);
+			line($x - 5, $y - 2, $x + 5, $y - 2);
+			line($x - 5, $y - 1, $x + 5, $y - 1);
+			line($x - 4, $y, $x + 4, $y);
+			pencolor(0);
+			pixel($x - 2, $y - 1);
+			pixel($x + 2, $y - 1);
+			pencolor($color);
+			if ($frame === 0) {
+				pixel($x - 5, $y + 1);
+				pixel($x - 2, $y + 1);
+				pixel($x + 2, $y + 1);
+				pixel($x + 5, $y + 1);
+			} else {
+				pixel($x - 4, $y + 1);
+				pixel($x - 1, $y + 1);
+				pixel($x + 1, $y + 1);
+				pixel($x + 4, $y + 1);
+			}
+		}
+	}
+}
+
+if (!function_exists('invaders_demo')) {
+	function invaders_demo($maxFrames = 0) {
+		screen('320x200');
+		cls();
+
+		// Precompute static starfield dots
+		srand(777);
+		$stars = [];
+		for ($i = 0; $i < 28; $i++) {
+			$stars[] = [rand(4, 315), rand(18, 186), ($i % 2 === 0) ? 8 : 7];
+		}
+
+		$score = 0;
+		$lives = 3;
+		$wave = 1;
+		$shipX = 160;
+		$shipY = 182;
+		$fireCooldown = 0;
+		$frameCount = 0;
+		$statusText = '';
+		$running = true;
+
+		while ($running && screen_mode()) {
+			// Initialize wave of 3 rows x 8 invaders + 3 bunkers
+			$invaders = [];
+			$rowColors = [13, 11, 14];
+			$rowScores = [30, 20, 10];
+			for ($r = 0; $r < 3; $r++) {
+				for ($c = 0; $c < 8; $c++) {
+					$invaders[] = [
+						'x' => 44 + $c * 28,
+						'y' => 30 + $r * 18,
+						'type' => $r,
+						'color' => $rowColors[$r],
+						'pts' => $rowScores[$r],
+						'alive' => true
+					];
+				}
+			}
+
+			$bunkers = [];
+			for ($b = 0; $b < 3; $b++) {
+				$bx = 64 + $b * 88;
+				$bunkers[] = ['x' => $bx, 'y' => 158, 'hp' => 6];
+				$bunkers[] = ['x' => $bx + 12, 'y' => 158, 'hp' => 6];
+			}
+
+			$bullets = [];
+			$bombs = [];
+			$dir = 1;
+			$stepTick = 0;
+			$animFrame = 0;
+			$waveActive = true;
+
+			while ($waveActive && $running && screen_mode()) {
+				$frameCount++;
+				if ($maxFrames > 0 && $frameCount > $maxFrames) {
+					$running = false;
+					break;
+				}
+
+				// 1. Non-blocking keyboard input
+				while (true) {
+					$k = inkey();
+					if ($k === '') {
+						break;
+					}
+					$kl = lower($k);
+					if ($kl === 'q') {
+						$running = false;
+						break;
+					}
+					if ($k === ' ' && $fireCooldown <= 0 && count($bullets) < 2) {
+						$bullets[] = ['x' => $shipX, 'y' => $shipY - 7];
+						$fireCooldown = 6;
+					}
+				}
+				if (!$running) {
+					break;
+				}
+
+				if (keydown('ArrowLeft') || keydown('a')) {
+					$shipX -= 4;
+					if ($shipX < 14) $shipX = 14;
+				}
+				if (keydown('ArrowRight') || keydown('d')) {
+					$shipX += 4;
+					if ($shipX > 305) $shipX = 305;
+				}
+				if (keydown('space') && $fireCooldown <= 0 && count($bullets) < 2) {
+					$bullets[] = ['x' => $shipX, 'y' => $shipY - 7];
+					$fireCooldown = 7;
+				}
+				if ($fireCooldown > 0) {
+					$fireCooldown--;
+				}
+
+				// 2. Update player lasers
+				$nextBullets = [];
+				foreach ($bullets as $b) {
+					$b['y'] -= 5;
+					if ($b['y'] < 14) {
+						continue;
+					}
+					$hit = false;
+
+					// Check shield bunkers
+					for ($bi = 0; $bi < count($bunkers); $bi++) {
+						if ($bunkers[$bi]['hp'] > 0
+							&& $b['x'] >= $bunkers[$bi]['x'] && $b['x'] <= $bunkers[$bi]['x'] + 10
+							&& $b['y'] >= $bunkers[$bi]['y'] && $b['y'] <= $bunkers[$bi]['y'] + 6) {
+							$bunkers[$bi]['hp']--;
+							$hit = true;
+							break;
+						}
+					}
+
+					// Check invaders
+					if (!$hit) {
+						for ($ii = 0; $ii < count($invaders); $ii++) {
+							if ($invaders[$ii]['alive']
+								&& abs($b['x'] - $invaders[$ii]['x']) <= 6
+								&& abs($b['y'] - $invaders[$ii]['y']) <= 5) {
+								$invaders[$ii]['alive'] = false;
+								$score += $invaders[$ii]['pts'];
+								$hit = true;
+								break;
+							}
+						}
+					}
+
+					if (!$hit) {
+						$nextBullets[] = $b;
+					}
+				}
+				$bullets = $nextBullets;
+
+				// 3. March invaders & fire enemy bombs
+				$aliveCount = 0;
+				$aliveIndices = [];
+				for ($ii = 0; $ii < count($invaders); $ii++) {
+					if ($invaders[$ii]['alive']) {
+						$aliveCount++;
+						$aliveIndices[] = $ii;
+					}
+				}
+
+				if ($aliveCount === 0) {
+					$wave++;
+					$waveActive = false;
+					continue;
+				}
+
+				$stepInterval = max(2, (int) ($aliveCount / 2));
+				$stepTick++;
+				if ($stepTick >= $stepInterval) {
+					$stepTick = 0;
+					$animFrame = 1 - $animFrame;
+					$hitEdge = false;
+					for ($ii = 0; $ii < count($invaders); $ii++) {
+						if (!$invaders[$ii]['alive']) continue;
+						$nx = $invaders[$ii]['x'] + $dir * 5;
+						if ($nx < 16 || $nx > 303) {
+							$hitEdge = true;
+							break;
+						}
+					}
+					if ($hitEdge) {
+						$dir = -$dir;
+						for ($ii = 0; $ii < count($invaders); $ii++) {
+							if ($invaders[$ii]['alive']) {
+								$invaders[$ii]['y'] += 7;
+								if ($invaders[$ii]['y'] >= $shipY - 6) {
+									$lives = 0;
+								}
+							}
+						}
+					} else {
+						for ($ii = 0; $ii < count($invaders); $ii++) {
+							if ($invaders[$ii]['alive']) {
+								$invaders[$ii]['x'] += $dir * 5;
+							}
+						}
+					}
+
+					// Random enemy bomb drop
+					if (count($bombs) < 3 && rand(1, 100) <= 35) {
+						$shooterIdx = $aliveIndices[rand(0, count($aliveIndices) - 1)];
+						$bombs[] = [
+							'x' => $invaders[$shooterIdx]['x'],
+							'y' => $invaders[$shooterIdx]['y'] + 4
+						];
+					}
+				}
+
+				// 4. Update enemy bombs
+				$nextBombs = [];
+				foreach ($bombs as $bm) {
+					$bm['y'] += 3;
+					if ($bm['y'] > 188) {
+						continue;
+					}
+					$hit = false;
+					for ($bi = 0; $bi < count($bunkers); $bi++) {
+						if ($bunkers[$bi]['hp'] > 0
+							&& $bm['x'] >= $bunkers[$bi]['x'] && $bm['x'] <= $bunkers[$bi]['x'] + 10
+							&& $bm['y'] >= $bunkers[$bi]['y'] && $bm['y'] <= $bunkers[$bi]['y'] + 6) {
+							$bunkers[$bi]['hp']--;
+							$hit = true;
+							break;
+						}
+					}
+					if (!$hit && abs($bm['x'] - $shipX) <= 8 && abs($bm['y'] - $shipY) <= 4) {
+						$lives--;
+						$hit = true;
+						$shipX = 160;
+					}
+					if (!$hit) {
+						$nextBombs[] = $bm;
+					}
+				}
+				$bombs = $nextBombs;
+
+				// 5. Render entire frame into VRAM buffer (flicker-free scanout)
+				cls();
+
+				foreach ($stars as $st) {
+					pixel($st[0], $st[1], $st[2]);
+				}
+
+				// Ground line & HUD
+				pencolor(2);
+				line(4, 189, 315, 189);
+				pencolor(15);
+				locate(1, 2);
+				echo sprintf("SCORE:%04d  WAVE:%d  LIVES:%d", $score, $wave, max(0, $lives));
+				pencolor(7);
+				locate(25, 2);
+				echo "A/D or ARROWS  SPACE:Fire  Q/ESC:Exit";
+
+				// Draw shield bunkers
+				foreach ($bunkers as $bk) {
+					if ($bk['hp'] <= 0) continue;
+					$bh = $bk['hp'];
+					pencolor($bh >= 4 ? 10 : ($bh >= 2 ? 14 : 4));
+					for ($rowY = 0; $rowY < $bh; $rowY++) {
+						line($bk['x'], $bk['y'] + (6 - $rowY), $bk['x'] + 10, $bk['y'] + (6 - $rowY));
+					}
+				}
+
+				// Draw invaders
+				foreach ($invaders as $inv) {
+					if ($inv['alive']) {
+						__invaders_draw_alien($inv['x'], $inv['y'], $inv['type'], $animFrame, $inv['color']);
+					}
+				}
+
+				// Draw player lasers & enemy bombs
+				pencolor(15);
+				foreach ($bullets as $b) {
+					line($b['x'], $b['y'], $b['x'], $b['y'] + 4);
+				}
+				pencolor(12);
+				foreach ($bombs as $bm) {
+					line($bm['x'], $bm['y'], $bm['x'], $bm['y'] + 4);
+				}
+
+				// Draw player cannon
+				if ($lives > 0) {
+					__invaders_draw_cannon($shipX, $shipY);
+				}
+
+				if ($lives <= 0) {
+					$statusText = "GAME OVER! SCORE: " . $score;
+					pencolor(12);
+					locate(12, 10);
+					echo $statusText;
+					pencolor(15);
+					locate(14, 7);
+					echo "SPACE: Play Again  Q/ESC: Exit";
+					$waveActive = false;
+
+					// Wait for Space to restart or Q/ESC to quit
+					while ($running && screen_mode()) {
+						$k2 = lower(inkey());
+						if ($k2 === 'q') {
+							$running = false;
+							break;
+						}
+						if ($k2 === ' ') {
+							$score = 0;
+							$lives = 3;
+							$wave = 1;
+							$shipX = 160;
+							break;
+						}
+						usleep(50000);
+					}
+					break;
+				}
+
+				usleep(33000);
+			}
+		}
+
+		if (screen_mode()) {
+			screen(0);
+		}
+		return true;
+	}
+}
+
+if (!isset($invaders_no_autorun) || !$invaders_no_autorun) {
+	invaders_demo();
+}

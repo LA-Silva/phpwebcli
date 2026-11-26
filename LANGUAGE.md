@@ -292,6 +292,7 @@ Persistent browser filesystem backed by `localStorage` (`vfs.js` + `lib/files.bo
 
 | Command | Description | Example |
 |---|---|---|
+| `cat($file, $return = false)` | Prints a text file from VFS (or server fallback) to the terminal, or returns its string when `$return = true`. | `cat("/tmp/note.txt");` or `cat("README.md");` |
 | `file_get_contents($file)` | Reads entire file contents into a string, or `false` if missing. | `$txt = file_get_contents("/tmp/note.txt");` |
 | `file_put_contents($file, $data, $flags = 0)` | Writes a string (or array of strings) to a file; pass `FILE_APPEND` to append. Returns byte count. | `file_put_contents("/tmp/note.txt", "Hi\n", FILE_APPEND);` |
 | `file($file, $flags = 0)` | Reads a file into an array of lines (supports `FILE_IGNORE_NEW_LINES \| FILE_SKIP_EMPTY_LINES`). | `$lines = file("/tmp/note.txt", FILE_IGNORE_NEW_LINES);` |
@@ -340,20 +341,28 @@ Persistent browser filesystem backed by `localStorage` (`vfs.js` + `lib/files.bo
 
 ---
 
-## 7. Screen, Terminal & Cursor Control (2D Framebuffer)
+## 7. Screen, Terminal & Pixel Framebuffer Control
 
-Provides terminal geometry queries and an Option 2 2D character grid framebuffer overlay (`lib/screen.bop` + `screen_buffer.js`). Supports cursor positioning, `cls()`, and ANSI escape codes (`ESC[H`, `ESC[row;colH`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`). Press **ESC** or call `screen_mode(false)` to return to the normal REPL.
+Provides terminal geometry queries, a 2D character grid (`text`), and unified hardware-style pixel framebuffers (`320x200` and `640x400`) backed by a flat 32-bit RGBA VRAM array (`lib/screen.bop` + `screen_buffer.js`). Supports `pixel()`, Bresenham `line()`, `pencolor()`, `locate()`, `cls()`, embedded `8x8`/`8x16` bitmap text rendering, and ANSI escape codes (`ESC[H`, `ESC[row;colH`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`). Press **ESC** or call `screen(0)` / `screen_mode(false)` to return to the normal REPL.
 
 | Command | Description | Example |
 |---|---|---|
-| `screen_columns()` | Returns terminal width in character columns. | `echo screen_columns();` |
-| `screen_lines()` | Returns terminal height in character rows. | `echo screen_lines();` |
-| `screen_mode($enabled = null)` | Gets active mode (`bool`) when called with no args, or switches between 2D framebuffer (`true`) and normal REPL (`false`). | `screen_mode(true);` |
-| `cls()` | Clears the 2D screen framebuffer (and resets cursor to `(1, 1)`) or clears the jQuery Terminal in REPL mode. | `cls();` |
-| `locate($row, $col = 1)` | Activates 2D screen mode if needed and moves cursor to 1-based `($row, $col)`. | `locate(5, 10); echo "Menu";` |
+| `screen($mode = null, $height = null)` | Gets current screen mode (`"off"`, `"text"`, `"320x200"`, `"640x400"`) with no args, or switches to `"320x200"` / `(320, 200)`, `"640x400"` / `(640, 400)`, `"text"`, or `0`/`false` (off). | `screen('320x200');` or `screen(640, 400);` |
+| `screen_width()` | Returns active pixel framebuffer width (`320` or `640`), or `0` in text/REPL mode. | `echo screen_width();` |
+| `screen_height()` | Returns active pixel framebuffer height (`200` or `400`), or `0` in text/REPL mode. | `echo screen_height();` |
+| `screen_columns()` | Returns width in character columns (`40` in `320x200`, `80` in `640x400`, or terminal cols). | `echo screen_columns();` |
+| `screen_lines()` | Returns height in character rows (`25` in pixel modes, or terminal rows). | `echo screen_lines();` |
+| `screen_mode($enabled = null)` | Gets active boolean state when called with no args, or toggles screen overlay (`true`/`false`). | `screen_mode(true);` |
+| `pencolor($colorcode = null)` | Gets active color code (default `15`), or sets pen color using VGA palette index `0..255` or `#RGB`/`#RRGGBB` hex string. | `pencolor(14);` or `pencolor('#ff5500');` |
+| `pixel($x, $y, $colorcode = null)` | Draws a single pixel at `(x, y)` in VRAM (auto-enters `320x200` if inactive) using active `pencolor()` or optional `$colorcode`. | `pixel(160, 100);` |
+| `line($x, $y, $x2, $y2, $colorcode = null)` | Draws a crisp 1px line from `(x, y)` to `(x2, y2)` using Bresenham rasterization into VRAM. | `line(0, 0, 319, 199);` |
+| `cls()` | Clears the active text/pixel framebuffer (and resets cursor to `(1, 1)`) or clears the jQuery Terminal in REPL mode. | `cls();` |
+| `locate($row, $col = 1)` | Moves text cursor to 1-based `($row, $col)` (activates `"text"` mode if inactive; works inside pixel modes too). | `locate(5, 10); echo "Menu";` |
 | `cursor_row()` | Returns the current 1-based cursor row inside the screen framebuffer. | `echo cursor_row();` |
 | `cursor_col()` | Returns the current 1-based cursor column inside the screen framebuffer. | `echo cursor_col();` |
 | `screen_line($row)` | Returns the plain text contents currently rendered on 1-based `$row`. | `echo trim(screen_line(5));` |
+| `inkey()` | Non-blocking read of the next queued key press while screen mode is active, or `""` if none. | `$k = inkey();` |
+| `keydown($key = null)` | Returns `true` if `$key` (`"ArrowLeft"`, `"left"`, `"space"`, `"a"`, etc.) is held down, or array of held keys if `null`. | `if (keydown("left")) $x--;` |
 
 ---
 
@@ -547,11 +556,14 @@ Run these scripts directly from the `bop >` prompt with `include '...'` (or `$in
 |---|---|---|
 | `example.bop` | Comprehensive walkthrough of every subsystem and all 8 test suites. | `include 'example.bop';` |
 | `screen_demo.bop` | Interactive 2D framebuffer demo using `screen_mode()`, `cls()`, `locate()`, ANSI escapes, and `screen_line()`. Call `screen_demo();` after including. | `include 'screen_demo.bop'; screen_demo();` |
+| `pixel_demo.bop` | Pixel graphics demo using `screen('320x200')` / `screen('640x400')`, `pencolor()`, `pixel()`, `line()`, and VRAM bitmap text. | `$includeBop('pixel_demo.bop');` |
+| `invaders_demo.bop` | Playable Space Invaders arcade game using `screen('320x200')`, `pixel()`, `line()`, `inkey()`, `keydown()`, and `usleep()`. | `$includeBop('invaders_demo.bop');` |
+| `pacman_demo.bop` | Playable Pac-Man arcade game with maze, pellets, power pellets, 4 AI ghosts, and warp tunnel in `320x200` VRAM. | `$includeBop('pacman_demo.bop');` |
 | `test/unit_test_string.bop` | Runs 58 string, `banner()`, and Perl `split()` assertions (`$unit_test_verbose = true;` for detailed output). | `include 'test/unit_test_string.bop';` |
 | `test/unit_test_date.bop` | Runs 16 Oracle date/number formatting and conversion assertions. | `include 'test/unit_test_date.bop';` |
 | `test/unit_test_cron.bop` | Runs 11 cron registration, override, deletion, and matcher assertions. | `include 'test/unit_test_cron.bop';` |
-| `test/unit_test_file.bop` | Runs 19 VFS file, directory, `cd()`/`pwd()`/`ls()`, stream, `glob()`, and `include()` assertions. | `include 'test/unit_test_file.bop';` |
+| `test/unit_test_file.bop` | Runs 20 VFS file, directory, `cd()`/`pwd()`/`ls()`, `cat()`, stream, `glob()`, and `include()` assertions. | `include 'test/unit_test_file.bop';` |
 | `test/unit_test_math.bop` | Runs 15 math, trig, rounding, PRNG, and base-conversion assertions. | `include 'test/unit_test_math.bop';` |
 | `test/unit_test_array.bop` | Runs 17 array transform, set, reduction, and sort assertions. | `include 'test/unit_test_array.bop';` |
 | `test/unit_test_sqlite.bop` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'test/unit_test_sqlite.bop';` |
-| `test/unit_test_screen.bop` | Runs 10 screen geometry, framebuffer, `locate()`, and ANSI assertions. | `include 'test/unit_test_screen.bop';` |
+| `test/unit_test_screen.bop` | Runs 20 screen geometry, text framebuffer, `320x200`/`640x400` pixel VRAM, `pencolor()`, `pixel()`, `line()`, `inkey()`, `keydown()`, and ANSI assertions. | `include 'test/unit_test_screen.bop';` |

@@ -1,5 +1,29 @@
 <?bop
 
+if (!function_exists('screen')) {
+	function screen($mode = null, $height = null) {
+		global $bridge;
+		if ($mode === null) {
+			return (string) $bridge->screenSet(null, null);
+		}
+		return (bool) $bridge->screenSet($mode, $height);
+	}
+}
+
+if (!function_exists('screen_width')) {
+	function screen_width() {
+		global $bridge;
+		return (int) $bridge->screenWidth();
+	}
+}
+
+if (!function_exists('screen_height')) {
+	function screen_height() {
+		global $bridge;
+		return (int) $bridge->screenHeight();
+	}
+}
+
 if (!function_exists('screen_columns')) {
 	function screen_columns() {
 		global $bridge;
@@ -28,6 +52,30 @@ if (!function_exists('screen_mode')) {
 			return (bool) $bridge->screenMode(null);
 		}
 		return (bool) $bridge->screenMode((bool) $enabled);
+	}
+}
+
+if (!function_exists('pencolor')) {
+	function pencolor($colorcode = null) {
+		global $bridge;
+		if ($colorcode === null) {
+			return $bridge->screenPenColor(null);
+		}
+		return (bool) $bridge->screenPenColor($colorcode);
+	}
+}
+
+if (!function_exists('pixel')) {
+	function pixel($x, $y, $colorcode = null) {
+		global $bridge;
+		return (bool) $bridge->screenPixel((int) $x, (int) $y, $colorcode);
+	}
+}
+
+if (!function_exists('line')) {
+	function line($x, $y, $x2, $y2, $colorcode = null) {
+		global $bridge;
+		return (bool) $bridge->screenDrawLine((int) $x, (int) $y, (int) $x2, (int) $y2, $colorcode);
 	}
 }
 
@@ -61,3 +109,19 @@ if (!function_exists('screen_line')) {
 	}
 }
 
+if (!function_exists('inkey')) {
+	function inkey() {
+		global $bridge;
+		return (string) $bridge->screenInkey();
+	}
+}
+
+if (!function_exists('keydown')) {
+	function keydown($key = null) {
+		global $bridge;
+		if ($key === null) {
+			return $bridge->screenKeyDown(null);
+		}
+		return (bool) $bridge->screenKeyDown((string) $key);
+	}
+}

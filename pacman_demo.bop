@@ -1,0 +1,712 @@
+<?bop
+/**
+ * pacman_demo.bop — Playable Pac-Man arcade demo in BOP.
+ *
+ * Uses:
+ *   screen('320x200'), cls(), pencolor(), pixel(), line(), locate(),
+ *   keydown(), inkey(), and usleep().
+ *
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('pacman_demo.bop');
+ *   include 'pacman_demo.bop';
+ *
+ * Controls:
+ *   Arrow Keys or WASD  Move Pac-Man (supports corner-turn buffering)
+ *   Q or ESC            Quit back to bop > prompt
+ */
+
+if (!function_exists('__pacman_maze_template')) {
+	function __pacman_maze_template() {
+		return [
+			'#####################',
+			'#o........#........o#',
+			'#.##.###..#..###.##.#',
+			'#...................#',
+			'#.##.#.#######.#.##.#',
+			'#....#....#....#....#',
+			'####.#.#..#..#.#.####',
+			'####.#.........#.####',
+			'.......##---##.......',
+			'####.#.#     #.#.####',
+			'####.#.#######.#.####',
+			'#.........P.........#',
+			'#.##.###..#..###.##.#',
+			'#o.................o#',
+			'#.##.#.#######.#.##.#',
+			'#...................#',
+			'#####################'
+		];
+	}
+}
+
+if (!function_exists('__pacman_can_walk')) {
+	function __pacman_can_walk($grid, $r, $c, $allowDoor = false) {
+		$rows = count($grid);
+		$cols = count($grid[0]);
+		if ($r < 0 || $r >= $rows) {
+			return false;
+		}
+		$wc = ($c % $cols + $cols) % $cols;
+		$ch = $grid[$r][$wc];
+		if ($ch === '#') {
+			return false;
+		}
+		if ($ch === '-' && !$allowDoor) {
+			return false;
+		}
+		return true;
+	}
+}
+
+if (!function_exists('__pacman_dir_vec')) {
+	function __pacman_dir_vec($dir) {
+		if ($dir === 'L') return [0, -1];
+		if ($dir === 'R') return [0, 1];
+		if ($dir === 'U') return [-1, 0];
+		if ($dir === 'D') return [1, 0];
+		return [0, 0];
+	}
+}
+
+if (!function_exists('__pacman_opp_dir')) {
+	function __pacman_opp_dir($dir) {
+		if ($dir === 'L') return 'R';
+		if ($dir === 'R') return 'L';
+		if ($dir === 'U') return 'D';
+		if ($dir === 'D') return 'U';
+		return '';
+	}
+}
+
+if (!function_exists('__pacman_draw_player')) {
+	function __pacman_draw_player($cx, $cy, $dir, $mouthPhase) {
+		pencolor(14);
+		line($cx - 2, $cy - 4, $cx + 2, $cy - 4);
+		line($cx - 3, $cy - 3, $cx + 3, $cy - 3);
+		line($cx - 4, $cy - 2, $cx + 4, $cy - 2);
+		line($cx - 4, $cy - 1, $cx + 4, $cy - 1);
+		line($cx - 4, $cy,     $cx + 4, $cy);
+		line($cx - 4, $cy + 1, $cx + 4, $cy + 1);
+		line($cx - 4, $cy + 2, $cx + 4, $cy + 2);
+		line($cx - 3, $cy + 3, $cx + 3, $cy + 3);
+		line($cx - 2, $cy + 4, $cx + 2, $cy + 4);
+
+		if ($mouthPhase === 0) {
+			return;
+		}
+		pencolor(0);
+		if ($dir === 'R' || $dir === '') {
+			line($cx, $cy, $cx + 4, $cy);
+			if ($mouthPhase >= 1) {
+				line($cx + 1, $cy - 1, $cx + 4, $cy - 1);
+				line($cx + 1, $cy + 1, $cx + 4, $cy + 1);
+			}
+			if ($mouthPhase >= 2) {
+				line($cx + 2, $cy - 2, $cx + 4, $cy - 2);
+				line($cx + 2, $cy + 2, $cx + 4, $cy + 2);
+			}
+		} elseif ($dir === 'L') {
+			line($cx - 4, $cy, $cx, $cy);
+			if ($mouthPhase >= 1) {
+				line($cx - 4, $cy - 1, $cx - 1, $cy - 1);
+				line($cx - 4, $cy + 1, $cx - 1, $cy + 1);
+			}
+			if ($mouthPhase >= 2) {
+				line($cx - 4, $cy - 2, $cx - 2, $cy - 2);
+				line($cx - 4, $cy + 2, $cx - 2, $cy + 2);
+			}
+		} elseif ($dir === 'U') {
+			line($cx, $cy - 4, $cx, $cy);
+			if ($mouthPhase >= 1) {
+				line($cx - 1, $cy - 4, $cx - 1, $cy - 1);
+				line($cx + 1, $cy - 4, $cx + 1, $cy - 1);
+			}
+			if ($mouthPhase >= 2) {
+				line($cx - 2, $cy - 4, $cx - 2, $cy - 2);
+				line($cx + 2, $cy - 4, $cx + 2, $cy - 2);
+			}
+		} elseif ($dir === 'D') {
+			line($cx, $cy, $cx, $cy + 4);
+			if ($mouthPhase >= 1) {
+				line($cx - 1, $cy + 1, $cx - 1, $cy + 4);
+				line($cx + 1, $cy + 1, $cx + 1, $cy + 4);
+			}
+			if ($mouthPhase >= 2) {
+				line($cx - 2, $cy + 2, $cx - 2, $cy + 4);
+				line($cx + 2, $cy + 2, $cx + 2, $cy + 4);
+			}
+		}
+	}
+}
+
+if (!function_exists('__pacman_draw_ghost')) {
+	function __pacman_draw_ghost($cx, $cy, $color, $dir, $anim, $eyesOnly, $frightFlash) {
+		if (!$eyesOnly) {
+			pencolor($color);
+			line($cx - 2, $cy - 4, $cx + 2, $cy - 4);
+			line($cx - 3, $cy - 3, $cx + 3, $cy - 3);
+			line($cx - 4, $cy - 2, $cx + 4, $cy - 2);
+			line($cx - 4, $cy - 1, $cx + 4, $cy - 1);
+			line($cx - 4, $cy,     $cx + 4, $cy);
+			line($cx - 4, $cy + 1, $cx + 4, $cy + 1);
+			line($cx - 4, $cy + 2, $cx + 4, $cy + 2);
+			line($cx - 4, $cy + 3, $cx + 4, $cy + 3);
+			if ($anim === 0) {
+				line($cx - 4, $cy + 4, $cx - 3, $cy + 4);
+				line($cx - 1, $cy + 4, $cx + 1, $cy + 4);
+				line($cx + 3, $cy + 4, $cx + 4, $cy + 4);
+			} else {
+				line($cx - 3, $cy + 4, $cx - 2, $cy + 4);
+				pixel($cx, $cy + 4);
+				line($cx + 2, $cy + 4, $cx + 3, $cy + 4);
+			}
+		}
+
+		// Eyes
+		$ex = 0;
+		$ey = 0;
+		if ($dir === 'L') $ex = -1;
+		elseif ($dir === 'R') $ex = 1;
+		elseif ($dir === 'U') $ey = -1;
+		elseif ($dir === 'D') $ey = 1;
+
+		if ($frightFlash) {
+			pencolor($frightFlash === true ? 14 : $frightFlash);
+			pixel($cx - 2, $cy - 1);
+			pixel($cx + 2, $cy - 1);
+			line($cx - 2, $cy + 2, $cx + 2, $cy + 2);
+		} else {
+			pencolor(15);
+			line($cx - 3, $cy - 2, $cx - 2, $cy - 2);
+			line($cx - 3, $cy - 1, $cx - 2, $cy - 1);
+			line($cx + 1, $cy - 2, $cx + 2, $cy - 2);
+			line($cx + 1, $cy - 1, $cx + 2, $cy - 1);
+			pencolor(1);
+			pixel($cx - 2 + ($ex < 0 ? -1 : 0), $cy - 1 + ($ey < 0 ? -1 : 0));
+			pixel($cx + 2 + ($ex < 0 ? -1 : 0), $cy - 1 + ($ey < 0 ? -1 : 0));
+		}
+	}
+}
+
+if (!function_exists('pacman_demo')) {
+	function pacman_demo($maxFrames = 0) {
+		screen('320x200');
+		cls();
+
+		$TILE = 10;
+		$OX = 55;
+		$OY = 20;
+		$COLS = 21;
+		$ROWS = 17;
+		$MAZE_W = $COLS * $TILE;
+
+		$score = 0;
+		$highScore = 0;
+		$lives = 3;
+		$level = 1;
+		$frameCount = 0;
+		$running = true;
+
+		while ($running && screen_mode()) {
+			// Build level grid and precompute wall border line segments
+			$tpl = __pacman_maze_template();
+			$grid = [];
+			$pelletsLeft = 0;
+			$startR = 11;
+			$startC = 10;
+
+			for ($r = 0; $r < $ROWS; $r++) {
+				$rowArr = [];
+				for ($c = 0; $c < $COLS; $c++) {
+					$ch = substr($tpl[$r], $c, 1);
+					if ($ch === 'P') {
+						$startR = $r;
+						$startC = $c;
+						$ch = ' ';
+					}
+					if ($ch === '.' || $ch === 'o') {
+						$pelletsLeft++;
+					}
+					$rowArr[] = $ch;
+				}
+				$grid[] = $rowArr;
+			}
+			$totalPellets = $pelletsLeft;
+
+			$wallLines = [];
+			$doorLine = [$OX + 9 * $TILE, $OY + 8 * $TILE + 4, $OX + 12 * $TILE - 1, $OY + 8 * $TILE + 4];
+			for ($r = 0; $r < $ROWS; $r++) {
+				for ($c = 0; $c < $COLS; $c++) {
+					if ($grid[$r][$c] !== '#') continue;
+					$x0 = $OX + $c * $TILE + 1;
+					$x1 = $OX + $c * $TILE + 8;
+					$y0 = $OY + $r * $TILE + 1;
+					$y1 = $OY + $r * $TILE + 8;
+					if ($r === 0 || $grid[$r - 1][$c] !== '#') {
+						$wallLines[] = [$x0, $y0, $x1, $y0];
+					}
+					if ($r === $ROWS - 1 || $grid[$r + 1][$c] !== '#') {
+						$wallLines[] = [$x0, $y1, $x1, $y1];
+					}
+					if ($c > 0 && $grid[$r][$c - 1] !== '#') {
+						$wallLines[] = [$x0, $y0, $x0, $y1];
+					}
+					if ($c < $COLS - 1 && $grid[$r][$c + 1] !== '#') {
+						$wallLines[] = [$x1, $y0, $x1, $y1];
+					}
+				}
+			}
+
+			// Reset actor positions for current life / level
+			$px = $startC * $TILE;
+			$py = $startR * $TILE;
+			$pDir = 'L';
+			$wantDir = 'L';
+			$mouthTick = 0;
+			$frightTicks = 0;
+			$eatCombo = 0;
+			$cherryTimer = 0;
+			$cherrySpawned = false;
+			$statusMsg = 'READY!';
+			$statusTimer = 28;
+			$levelCleared = false;
+
+			$ghosts = [
+				['name' => 'Blinky', 'color' => 12,        'px' => 10 * $TILE, 'py' => 7 * $TILE, 'dir' => 'L', 'state' => 'active', 'wait' => 0,   'scR' => 1,  'scC' => 19],
+				['name' => 'Pinky',  'color' => 13,        'px' => 10 * $TILE, 'py' => 9 * $TILE, 'dir' => 'U', 'state' => 'pen',    'wait' => 20,  'scR' => 1,  'scC' => 1],
+				['name' => 'Inky',   'color' => 11,        'px' => 9 * $TILE,  'py' => 9 * $TILE, 'dir' => 'U', 'state' => 'pen',    'wait' => 55,  'scR' => 15, 'scC' => 19],
+				['name' => 'Clyde',  'color' => '#FFB852', 'px' => 11 * $TILE, 'py' => 9 * $TILE, 'dir' => 'U', 'state' => 'pen',    'wait' => 90,  'scR' => 15, 'scC' => 1]
+			];
+
+			$levelTick = 0;
+			while ($running && screen_mode() && !$levelCleared && $lives > 0) {
+				$frameCount++;
+				$levelTick++;
+				if ($maxFrames > 0 && $frameCount > $maxFrames) {
+					$running = false;
+					break;
+				}
+
+				// 1. Non-blocking keyboard input
+				while (true) {
+					$k = inkey();
+					if ($k === '') {
+						break;
+					}
+					$kl = lower($k);
+					if ($kl === 'q') {
+						$running = false;
+						break;
+					}
+					if ($kl === 'arrowleft' || $kl === 'a') $wantDir = 'L';
+					elseif ($kl === 'arrowright' || $kl === 'd') $wantDir = 'R';
+					elseif ($kl === 'arrowup' || $kl === 'w') $wantDir = 'U';
+					elseif ($kl === 'arrowdown' || $kl === 's') $wantDir = 'D';
+				}
+				if (!$running) {
+					break;
+				}
+
+				if (keydown('left') || keydown('a')) $wantDir = 'L';
+				elseif (keydown('right') || keydown('d')) $wantDir = 'R';
+				elseif (keydown('up') || keydown('w')) $wantDir = 'U';
+				elseif (keydown('down') || keydown('s')) $wantDir = 'D';
+
+				// Allow instant 180-degree reversal mid-corridor
+				if ($wantDir === __pacman_opp_dir($pDir)) {
+					$pDir = $wantDir;
+				}
+
+				// 2. Move Pac-Man (2px per frame)
+				if (($px % $TILE === 0) && ($py % $TILE === 0)) {
+					$pc = intdiv($px, $TILE);
+					$pr = intdiv($py, $TILE);
+
+					// Try buffered turn first
+					$wv = __pacman_dir_vec($wantDir);
+					if (__pacman_can_walk($grid, $pr + $wv[0], $pc + $wv[1], false)) {
+						$pDir = $wantDir;
+					}
+					$dv = __pacman_dir_vec($pDir);
+					if (!__pacman_can_walk($grid, $pr + $dv[0], $pc + $dv[1], false)) {
+						$pDir = '';
+					}
+				}
+
+				if ($pDir !== '') {
+					$dv = __pacman_dir_vec($pDir);
+					$px += $dv[1] * 2;
+					$py += $dv[0] * 2;
+					if ($px < 0) $px += $MAZE_W;
+					if ($px >= $MAZE_W) $px -= $MAZE_W;
+					$mouthTick++;
+				}
+
+				// Eat pellet / power pellet / cherry on current tile center
+				$pacC = intdiv(($px + 5) % $MAZE_W, $TILE);
+				$pacR = intdiv($py + 5, $TILE);
+				if ($pacR >= 0 && $pacR < $ROWS && $pacC >= 0 && $pacC < $COLS) {
+					$cell = $grid[$pacR][$pacC];
+					if ($cell === '.') {
+						$grid[$pacR][$pacC] = ' ';
+						$score += 10;
+						$pelletsLeft--;
+					} elseif ($cell === 'o') {
+						$grid[$pacR][$pacC] = ' ';
+						$score += 50;
+						$pelletsLeft--;
+						$frightTicks = max(70, 155 - ($level - 1) * 15);
+						$eatCombo = 0;
+						$statusMsg = 'POWER!';
+						$statusTimer = 25;
+						for ($gi = 0; $gi < count($ghosts); $gi++) {
+							if ($ghosts[$gi]['state'] === 'active') {
+								$ghosts[$gi]['dir'] = __pacman_opp_dir($ghosts[$gi]['dir']);
+							}
+						}
+					}
+				}
+
+				if (!$cherrySpawned && $pelletsLeft <= (int) ($totalPellets / 2)) {
+					$cherrySpawned = true;
+					$cherryTimer = 220;
+				}
+				if ($cherryTimer > 0) {
+					$cherryTimer--;
+					if ($pacR === $startR && $pacC === $startC) {
+						$score += 100;
+						$cherryTimer = 0;
+						$statusMsg = 'CHERRY +100!';
+						$statusTimer = 30;
+					}
+				}
+
+				if ($score > $highScore) {
+					$highScore = $score;
+				}
+				if ($pelletsLeft <= 0) {
+					$levelCleared = true;
+					$level++;
+					$score += 250;
+					if ($score > $highScore) $highScore = $score;
+					$statusMsg = 'LEVEL CLEAR!';
+				}
+
+				if ($frightTicks > 0) {
+					$frightTicks--;
+				}
+				if ($statusTimer > 0) {
+					$statusTimer--;
+					if ($statusTimer === 0 && $frightTicks <= 0) {
+						$statusMsg = '';
+					}
+				}
+
+				// 3. Move ghosts
+				$scatterMode = (($levelTick % 320) < 90);
+				$blinkyC = intdiv(($ghosts[0]['px'] + 5) % $MAZE_W, $TILE);
+				$blinkyR = intdiv($ghosts[0]['py'] + 5, $TILE);
+
+				for ($gi = 0; $gi < count($ghosts); $gi++) {
+					$g = $ghosts[$gi];
+
+					if ($g['state'] === 'pen') {
+						if ($g['wait'] > 0) {
+							$g['wait']--;
+							$ghosts[$gi] = $g;
+							continue;
+						}
+						// Move horizontally toward col 10, then exit through door to row 7
+						$doorX = 10 * $TILE;
+						$exitY = 7 * $TILE;
+						if ($g['px'] < $doorX) {
+							$g['px'] += 2;
+							$g['dir'] = 'R';
+						} elseif ($g['px'] > $doorX) {
+							$g['px'] -= 2;
+							$g['dir'] = 'L';
+						} elseif ($g['py'] > $exitY) {
+							$g['py'] -= 2;
+							$g['dir'] = 'U';
+						} else {
+							$g['state'] = 'active';
+							$g['dir'] = ($gi % 2 === 0) ? 'L' : 'R';
+						}
+						$ghosts[$gi] = $g;
+						continue;
+					}
+
+					// Speed pacing while keeping pixel coords multiples of 2
+					if ($g['state'] === 'active') {
+						if ($frightTicks > 0) {
+							if ($levelTick % 2 === 0) {
+								$ghosts[$gi] = $g;
+								continue;
+							}
+						} else {
+							$skipMod = max(3, 6 - min(3, $level - 1));
+							if ($levelTick % $skipMod === 0) {
+								$ghosts[$gi] = $g;
+								continue;
+							}
+						}
+					}
+
+					if (($g['px'] % $TILE === 0) && ($g['py'] % $TILE === 0)) {
+						$gc = intdiv($g['px'], $TILE);
+						$gr = intdiv($g['py'], $TILE);
+
+						if ($g['state'] === 'eyes' && $gr === 7 && $gc === 10) {
+							// Drop straight into ghost house and respawn
+							$g['py'] = 9 * $TILE;
+							$g['state'] = 'pen';
+							$g['wait'] = 10;
+							$ghosts[$gi] = $g;
+							continue;
+						}
+
+						$dirs = ['U', 'L', 'D', 'R'];
+						$opp = __pacman_opp_dir($g['dir']);
+						$valid = [];
+						foreach ($dirs as $cand) {
+							if ($cand === $opp) continue;
+							$cv = __pacman_dir_vec($cand);
+							if (__pacman_can_walk($grid, $gr + $cv[0], $gc + $cv[1], false)) {
+								$valid[] = $cand;
+							}
+						}
+						if (count($valid) === 0) {
+							foreach ($dirs as $cand) {
+								$cv = __pacman_dir_vec($cand);
+								if (__pacman_can_walk($grid, $gr + $cv[0], $gc + $cv[1], false)) {
+									$valid[] = $cand;
+								}
+							}
+						}
+
+						if (count($valid) > 0) {
+							if ($frightTicks > 0 && $g['state'] === 'active') {
+								$g['dir'] = $valid[rand(0, count($valid) - 1)];
+							} else {
+								// Compute target tile
+								$tR = $pacR;
+								$tC = $pacC;
+								if ($g['state'] === 'eyes') {
+									$tR = 7;
+									$tC = 10;
+								} elseif ($scatterMode) {
+									$tR = $g['scR'];
+									$tC = $g['scC'];
+								} elseif ($gi === 1) {
+									// Pinky: 3 tiles ahead of Pac-Man
+									$pv = __pacman_dir_vec($pDir);
+									$tR = $pacR + $pv[0] * 3;
+									$tC = $pacC + $pv[1] * 3;
+								} elseif ($gi === 2) {
+									// Inky: flank vector from Blinky
+									$pv = __pacman_dir_vec($pDir);
+									$aR = $pacR + $pv[0] * 2;
+									$aC = $pacC + $pv[1] * 2;
+									$tR = $aR + ($aR - $blinkyR);
+									$tC = $aC + ($aC - $blinkyC);
+								} elseif ($gi === 3) {
+									// Clyde: shy if close
+									$distSq = ($gr - $pacR) * ($gr - $pacR) + ($gc - $pacC) * ($gc - $pacC);
+									if ($distSq < 25) {
+										$tR = $g['scR'];
+										$tC = $g['scC'];
+									}
+								}
+
+								$bestDir = $valid[0];
+								$bestDist = 999999;
+								foreach ($valid as $cand) {
+									$cv = __pacman_dir_vec($cand);
+									$nr = $gr + $cv[0];
+									$nc = ($gc + $cv[1] + $COLS) % $COLS;
+									$d2 = ($nr - $tR) * ($nr - $tR) + ($nc - $tC) * ($nc - $tC);
+									if ($d2 < $bestDist) {
+										$bestDist = $d2;
+										$bestDir = $cand;
+									}
+								}
+								$g['dir'] = $bestDir;
+							}
+						}
+					}
+
+					$gv = __pacman_dir_vec($g['dir']);
+					$g['px'] += $gv[1] * 2;
+					$g['py'] += $gv[0] * 2;
+					if ($g['px'] < 0) $g['px'] += $MAZE_W;
+					if ($g['px'] >= $MAZE_W) $g['px'] -= $MAZE_W;
+					$ghosts[$gi] = $g;
+				}
+
+				// 4. Ghost vs Pac-Man collisions
+				$lifeLost = false;
+				for ($gi = 0; $gi < count($ghosts); $gi++) {
+					$g = $ghosts[$gi];
+					if ($g['state'] === 'pen' || $g['state'] === 'eyes') continue;
+					$dx = abs($px - $g['px']);
+					$dy = abs($py - $g['py']);
+					if ($dx <= 6 && $dy <= 6) {
+						if ($frightTicks > 0) {
+							$eatCombo++;
+							$bonus = 100 * (1 << $eatCombo);
+							$score += $bonus;
+							if ($score > $highScore) $highScore = $score;
+							$ghosts[$gi]['state'] = 'eyes';
+							$statusMsg = '+' . $bonus . '!';
+							$statusTimer = 25;
+						} else {
+							$lives--;
+							$lifeLost = true;
+							break;
+						}
+					}
+				}
+
+				// 5. Render entire frame into VRAM
+				cls();
+
+				// HUD header & footer
+				pencolor(15);
+				locate(1, 2);
+				echo sprintf("SCORE:%05d  HI:%05d  LVL:%d  LIVES:%d", $score, $highScore, $level, max(0, $lives));
+				if ($statusMsg !== '') {
+					pencolor($frightTicks > 0 ? 11 : 14);
+					locate(2, 16);
+					echo $statusMsg;
+				}
+				pencolor(7);
+				locate(25, 6);
+				echo "ARROWS/WASD:Move   Q/ESC:Exit";
+
+				// Maze walls & ghost house gate
+				pencolor(9);
+				foreach ($wallLines as $wl) {
+					line($wl[0], $wl[1], $wl[2], $wl[3]);
+				}
+				pencolor(13);
+				line($doorLine[0], $doorLine[1], $doorLine[2], $doorLine[3]);
+
+				// Pellets & blinking power pellets
+				$blinkOn = (($frameCount >> 2) % 2 === 0);
+				for ($r = 0; $r < $ROWS; $r++) {
+					for ($c = 0; $c < $COLS; $c++) {
+						$ch = $grid[$r][$c];
+						if ($ch === '.') {
+							$cx = $OX + $c * $TILE + 4;
+							$cy = $OY + $r * $TILE + 4;
+							pencolor('#FFB897');
+							pixel($cx, $cy);
+							pixel($cx + 1, $cy);
+							pixel($cx, $cy + 1);
+							pixel($cx + 1, $cy + 1);
+						} elseif ($ch === 'o' && $blinkOn) {
+							$cx = $OX + $c * $TILE + 4;
+							$cy = $OY + $r * $TILE + 4;
+							pencolor(15);
+							line($cx - 1, $cy - 2, $cx + 2, $cy - 2);
+							line($cx - 2, $cy - 1, $cx + 3, $cy - 1);
+							line($cx - 2, $cy,     $cx + 3, $cy);
+							line($cx - 2, $cy + 1, $cx + 3, $cy + 1);
+							line($cx - 1, $cy + 2, $cx + 2, $cy + 2);
+						}
+					}
+				}
+
+				// Bonus Cherry
+				if ($cherryTimer > 0) {
+					$chx = $OX + $startC * $TILE + 4;
+					$chy = $OY + $startR * $TILE + 5;
+					pencolor(10);
+					line($chx, $chy - 4, $chx - 2, $chy - 1);
+					line($chx, $chy - 4, $chx + 2, $chy - 1);
+					pencolor(12);
+					line($chx - 3, $chy, $chx - 1, $chy);
+					line($chx - 3, $chy + 1, $chx - 1, $chy + 1);
+					line($chx + 1, $chy, $chx + 3, $chy);
+					line($chx + 1, $chy + 1, $chx + 3, $chy + 1);
+				}
+
+				// Ghosts
+				$gAnim = ($frameCount >> 2) % 2;
+				foreach ($ghosts as $g) {
+					$gx = $OX + $g['px'] + 4;
+					$gy = $OY + $g['py'] + 4;
+					$eyesOnly = ($g['state'] === 'eyes');
+					$frightened = ($frightTicks > 0 && $g['state'] === 'active');
+					$flashWhite = ($frightened && $frightTicks < 40 && (($frameCount >> 2) % 2 === 1));
+					$gColor = $frightened ? ($flashWhite ? 15 : 1) : $g['color'];
+					$frightFace = $frightened ? ($flashWhite ? 12 : 14) : false;
+					__pacman_draw_ghost($gx, $gy, $gColor, $g['dir'], $gAnim, $eyesOnly, $frightFace);
+				}
+
+				// Pac-Man
+				$mouthPhase = ($pDir === '') ? 1 : (($mouthTick >> 1) % 3);
+				__pacman_draw_player($OX + $px + 4, $OY + $py + 4, $pDir, $mouthPhase);
+
+				if ($lifeLost) {
+					if ($lives > 0) {
+						pencolor(14);
+						locate(2, 17);
+						echo "OOPS! -1 LIFE";
+						usleep(650000);
+						$px = $startC * $TILE;
+						$py = $startR * $TILE;
+						$pDir = 'L';
+						$wantDir = 'L';
+						$frightTicks = 0;
+						$ghosts[0]['px'] = 10 * $TILE; $ghosts[0]['py'] = 7 * $TILE; $ghosts[0]['state'] = 'active'; $ghosts[0]['dir'] = 'L';
+						$ghosts[1]['px'] = 10 * $TILE; $ghosts[1]['py'] = 9 * $TILE; $ghosts[1]['state'] = 'pen';    $ghosts[1]['wait'] = 20;
+						$ghosts[2]['px'] = 9 * $TILE;  $ghosts[2]['py'] = 9 * $TILE; $ghosts[2]['state'] = 'pen';    $ghosts[2]['wait'] = 45;
+						$ghosts[3]['px'] = 11 * $TILE; $ghosts[3]['py'] = 9 * $TILE; $ghosts[3]['state'] = 'pen';    $ghosts[3]['wait'] = 70;
+					} else {
+						pencolor(12);
+						locate(11, 13);
+						echo "  GAME OVER!  ";
+						pencolor(15);
+						locate(13, 6);
+						echo "SPACE: Play Again   Q/ESC: Exit";
+						while ($running && screen_mode()) {
+							$k2 = lower(inkey());
+							if ($k2 === 'q') {
+								$running = false;
+								break;
+							}
+							if ($k2 === ' ') {
+								$score = 0;
+								$lives = 3;
+								$level = 1;
+								break;
+							}
+							usleep(50000);
+						}
+					}
+					continue;
+				}
+
+				if ($levelCleared) {
+					pencolor(10);
+					locate(2, 15);
+					echo "LEVEL CLEAR! +250";
+					usleep(700000);
+					break;
+				}
+
+				usleep(45000);
+			}
+		}
+
+		if (screen_mode()) {
+			screen(0);
+		}
+		return true;
+	}
+}
+
+if (!isset($pacman_no_autorun) || !$pacman_no_autorun) {
+	pacman_demo();
+}

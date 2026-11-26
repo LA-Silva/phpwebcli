@@ -102,7 +102,7 @@
 
 ### Virtual Filesystem & BOP Streams (`lib/files.bop`, `vfs.js`)
 - [x] Persistent `localStorage` VFS with `file_get_contents()`, `file_put_contents()`, `file()`, `unlink()`, `rename()`, `copy()`, `mkdir()`, `rmdir()`, `is_dir()`, `filesize()`, `filemtime()`, `touch()`, `scandir()`, `glob()`, `basename()`, `realpath()`
-- [x] Scriptable bash-style BOP helpers: `pwd()`, `cd($dir = '/')`, `ls($path = null, $long = false)`
+- [x] Scriptable bash-style BOP helpers: `pwd()`, `cd($dir = '/')`, `ls($path = null, $long = false)`, `cat($file, $return = false)`
 - [x] Low-level BOP stream resources: `fopen()`, `fread()`, `fwrite()`, `fgets()`, `fgetc()`, `fseek()`, `ftell()`, `rewind()`, `feof()`, `ftruncate()`, `fflush()`, `fpassthru()`, `fclose()`
 - [x] Filesystem constants (`SEEK_*`, `FILE_APPEND`, `FILE_IGNORE_NEW_LINES`, `FILE_SKIP_EMPTY_LINES`, `LOCK_EX`, `SCANDIR_*`, `DIRECTORY_SEPARATOR`, `BOP_EOL`)
 
@@ -117,10 +117,10 @@
 - [x] Inspection, math & sets: `array_reverse()`, `array_flip()`, `array_change_key_case()`, `array_sum()`, `array_product()`, `array_reduce()`, `array_walk()`, `array_count_values()`, `array_intersect()`, `array_intersect_key()`, `array_diff_key()`, `array_key_first()`, `array_key_last()`
 - [x] Sorting & shuffling: `sort()`, `rsort()`, `arsort()`, `ksort()`, `usort()`, `uasort()`, `uksort()`, `shuffle()`, `array_rand()`, plus `CASE_*` and `SORT_*` constants
 
-### Screen, Terminal & Cursor Control (`lib/screen.bop`, `screen_buffer.js`, `screen_demo.bop`)
-- [x] Screen dimension wrappers: `screen_columns()` and `screen_lines()`
-- [x] Option 2 2D character framebuffer overlay: `screen_mode()`, `cls()`, `locate()`, `cursor_row()`, `cursor_col()`, `screen_line()` with blinking cursor, VT100 deferred wrap, `Escape`/exit button, and ANSI CSI escapes (`ESC[H`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`)
-- [x] Interactive demo script (`screen_demo.bop` / `screen_demo()`)
+### Screen, Terminal & Pixel Framebuffer Control (`lib/screen.bop`, `screen_buffer.js`, `screen_demo.bop`)
+- [x] Screen dimension wrappers: `screen_columns()`, `screen_lines()`, `screen_width()`, `screen_height()`
+- [x] Text & hardware-style pixel framebuffer overlay (`screen('320x200')`, `screen(640, 400)`): `screen()`, `screen_mode()`, `cls()`, `locate()`, `cursor_row()`, `cursor_col()`, `screen_line()`, `pencolor()`, `pixel()`, `line()`, `inkey()`, `keydown()`, `8x8`/`8x16` bitmap text rendering, blinking cursor, VT100 deferred wrap, `Escape`/exit button, and ANSI CSI escapes (`ESC[H`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`)
+- [x] Interactive demo scripts (`screen_demo.bop` / `screen_demo()`, `pixel_demo.bop` / `pixel_demo()`, `invaders_demo.bop` / `invaders_demo()`, `pacman_demo.bop` / `pacman_demo()`)
 
 ### SQLite3 & PDO Databases (`lib/sqlite.bop`, `minisql.js`)
 - [x] Zero-WASM pure-JS SQL engine with `:memory:` and persistent `localStorage` VFS database files

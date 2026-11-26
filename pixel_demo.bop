@@ -1,0 +1,112 @@
+<?bop
+/**
+ * pixel_demo.bop — Interactive showcase of hardware-style pixel framebuffer commands.
+ *
+ * Demonstrates:
+ *   screen('320x200') / screen(640, 400), screen_width(), screen_height(),
+ *   cls(), pencolor(), pixel(), line(), locate(), and bitmap text in VRAM.
+ *
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('pixel_demo.bop');
+ *   include 'pixel_demo.bop';
+ *
+ * Try high-res mode after loading:
+ *   pixel_demo('640x400');
+ *
+ * Press ESC (or click "ESC: Exit Screen", or run screen(0);) to return to bop > prompt.
+ */
+
+if (!function_exists('pixel_demo')) {
+	function pixel_demo($mode = '320x200') {
+		if (!screen($mode)) {
+			echo "Unsupported screen mode. Use '320x200' or '640x400'.\n";
+			return false;
+		}
+		cls();
+
+		$w = screen_width();
+		$h = screen_height();
+		$cx = (int) ($w / 2);
+		$cy = (int) ($h / 2) + 8;
+
+		// 1. Draw outer border using bright white (VGA color 15)
+		pencolor(15);
+		line(0, 0, $w - 1, 0);
+		line($w - 1, 0, $w - 1, $h - 1);
+		line($w - 1, $h - 1, 0, $h - 1);
+		line(0, $h - 1, 0, 0);
+
+		// 2. Title text rendered directly into pixel VRAM
+		pencolor(14);
+		locate(2, 3);
+		echo "BOP PIXEL FRAMEBUFFER (" . $w . "x" . $h . ")";
+
+		pencolor(11);
+		locate(3, 3);
+		echo "screen() + pencolor() + pixel() + line()";
+
+		// 3. Draw 16-color VGA palette strip using line()
+		$swatchW = (int) (($w - 32) / 16);
+		$swatchY0 = (int) ($h * 0.16);
+		$swatchY1 = $swatchY0 + ($h >= 400 ? 14 : 8);
+		for ($c = 0; $c < 16; $c++) {
+			pencolor($c);
+			$x0 = 16 + $c * $swatchW;
+			for ($sy = $swatchY0; $sy <= $swatchY1; $sy++) {
+				line($x0, $sy, $x0 + $swatchW - 2, $sy);
+			}
+		}
+
+		// White frame around palette strip
+		pencolor(7);
+		line(15, $swatchY0 - 1, 16 + 16 * $swatchW - 1, $swatchY0 - 1);
+		line(15, $swatchY1 + 1, 16 + 16 * $swatchW - 1, $swatchY1 + 1);
+
+		// 4. Geometric starburst & diamond using Bresenham line() + VGA & hex colors
+		$rx = (int) ($w * 0.28);
+		$ry = (int) ($h * 0.24);
+		$colors = [9, 11, 10, 14, 12, 13, '#ff8800', '#00ffcc'];
+		$steps = 16;
+		for ($i = 0; $i < $steps; $i++) {
+			$angle = ($i / $steps) * 2.0 * pi();
+			$tx = $cx + (int) round(cos($angle) * $rx);
+			$ty = $cy + (int) round(sin($angle) * $ry);
+			pencolor($colors[$i % count($colors)]);
+			line($cx, $cy, $tx, $ty);
+		}
+
+		pencolor('#ffffff');
+		line($cx, $cy - $ry, $cx + $rx, $cy);
+		line($cx + $rx, $cy, $cx, $cy + $ry);
+		line($cx, $cy + $ry, $cx - $rx, $cy);
+		line($cx - $rx, $cy, $cx, $cy - $ry);
+
+		// 5. Sine wave plotted pixel-by-pixel with pixel()
+		$waveBaseY = (int) ($h * 0.84);
+		$waveAmp = $h >= 400 ? 18 : 10;
+		pencolor('#44ddff');
+		for ($x = 12; $x < $w - 12; $x++) {
+			$y = $waveBaseY + (int) round(sin($x * 0.08) * $waveAmp);
+			pixel($x, $y);
+		}
+
+		// 6. Starfield dots using rand() + pixel()
+		srand(2026);
+		$starColors = [7, 15, 11, 14];
+		for ($s = 0; $s < 45; $s++) {
+			$sx = rand(8, $w - 9);
+			$sy = rand($swatchY1 + 6, $waveBaseY - $waveAmp - 4);
+			pencolor($starColors[$s % count($starColors)]);
+			pixel($sx, $sy);
+		}
+
+		// 7. Footer instructions
+		pencolor(15);
+		locate(screen_lines() - 1, 3);
+		echo "ESC to exit | Try: pixel_demo('640x400');";
+
+		return true;
+	}
+}
+
+pixel_demo();

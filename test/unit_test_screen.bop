@@ -1,6 +1,6 @@
 <?bop
 return call_user_func(function($verbose) {
-	global $term;
+	global $term, $bridge;
 
 	$cols = screen_columns();
 	$lines = screen_lines();
@@ -31,8 +31,79 @@ return call_user_func(function($verbose) {
 	$curAfterClsRow = cursor_row();
 	$curAfterClsCol = cursor_col();
 
+	// Test 320x200 hardware pixel framebuffer mode
+	$badRes = screen(800, 600);
+	$ok320 = screen('320x200');
+	$mode320 = screen();
+	$w320 = screen_width();
+	$h320 = screen_height();
+	$cols320 = screen_columns();
+	$lines320 = screen_lines();
+
+	$defaultPen = pencolor();
+	$setPen14 = pencolor(14);
+	$curPen14 = pencolor();
+	$pxOk = pixel(10, 20);
+	$pxColor = $bridge->screenGetPixel(10, 20);
+	$pxOob = pixel(320, 200) || pixel(-1, 0);
+
+	$setPenHex = pencolor('#112233');
+	$curPenHex = pencolor();
+	$pxHexOk = pixel(15, 25);
+	$pxHexRead = $bridge->screenGetPixel(15, 25);
+
+	// Test Bresenham line() rasterization and cls() VRAM clear
+	pencolor(10);
+	$lineOk = line(0, 0, 20, 20);
+	$lineStart = $bridge->screenGetPixel(0, 0);
+	$lineMid = $bridge->screenGetPixel(10, 10);
+	$lineEnd = $bridge->screenGetPixel(20, 20);
+	$lineOff = $bridge->screenGetPixel(10, 11);
+
+	// Test unified text rendering into pixel VRAM
+	locate(2, 3);
+	echo "A";
+	$textLine320 = substr(screen_line(2), 2, 1);
+	// 'A' glyph at col=2 (x=16..23), row=1 (y=8..15) has foreground pixels at x=19,y=8
+	$glyphLit = $bridge->screenGetPixel(19, 8) === 10;
+
+	cls();
+	$clearedPx = $bridge->screenGetPixel(10, 10);
+
+	// Test 640x400 hardware pixel framebuffer mode
+	$ok640 = screen(640, 400);
+	$mode640 = screen();
+	$w640 = screen_width();
+	$h640 = screen_height();
+	$cols640 = screen_columns();
+	$lines640 = screen_lines();
+	pencolor(12);
+	$px640Ok = pixel(639, 399);
+	$px640Color = $bridge->screenGetPixel(639, 399);
+
+	// Test non-blocking keyboard helpers (inkey / keydown)
+	$emptyKey = inkey();
+	$bridge->screenPushKey('a', null);
+	$bridge->screenPushKey(' ', null);
+	$k1 = inkey();
+	$k2 = inkey();
+	$k3 = inkey();
+
+	$bridge->screenPushKey('ArrowLeft', true);
+	$bridge->screenPushKey(' ', true);
+	$kdArrow = keydown('ArrowLeft');
+	$kdAlias = keydown('left');
+	$kdSpace = keydown('space');
+	$kdList = keydown();
+	$bridge->screenPushKey('ArrowLeft', false);
+	$bridge->screenPushKey(' ', false);
+	$kdReleased = keydown('left');
+
+	// Restore default pen and exit screen back to previous mode
+	pencolor(15);
 	screen_mode($prevMode);
 	$modeRestored = screen_mode();
+	$screenAfterOff = screen();
 
 	$cases = [
 		['screen_columns() returns positive int', is_int($cols) && $cols > 0, true],
@@ -44,7 +115,17 @@ return call_user_func(function($verbose) {
 		['locate(4, 10) + echo writes at row 4 col 10', $row4AfterLocate, 'XY'],
 		['ANSI CSI ESC[2;4H moves cursor and echo writes OK', $row2AfterAnsi, 'OK'],
 		['cls() clears screen buffer and resets cursor to (1,1)', $row3AfterCls === '' && $curAfterClsRow === 1 && $curAfterClsCol === 1, true],
-		['screen_mode(false) restores REPL mode', $modeRestored, $prevMode],
+		['screen(800, 600) rejects unsupported resolution', $badRes, false],
+		['screen("320x200") sets 320x200 pixels and 40x25 text grid', $ok320 && $mode320 === '320x200' && $w320 === 320 && $h320 === 200 && $cols320 === 40 && $lines320 === 25, true],
+		['pencolor(14) + pixel(10, 20) writes palette code 14 to VRAM and clips OOB', $defaultPen === 15 && $setPen14 && $curPen14 === 14 && $pxOk && $pxColor === 14 && $pxOob === false, true],
+		['pencolor("#112233") + pixel(15, 25) writes custom RGB color to VRAM', $setPenHex && $curPenHex === '#112233' && $pxHexOk && $pxHexRead === '#112233', true],
+		['line(0, 0, 20, 20) rasterizes diagonal pixels into VRAM', $lineOk && $lineStart === 10 && $lineMid === 10 && $lineEnd === 10 && $lineOff === 0, true],
+		['locate() + echo renders 8x8 bitmap glyph pixels into VRAM', $textLine320 === 'A' && $glyphLit, true],
+		['cls() clears pixel VRAM back to 0', $clearedPx, 0],
+		['screen(640, 400) sets 640x400 pixels, 80x25 grid, and plots (639, 399)', $ok640 && $mode640 === '640x400' && $w640 === 640 && $h640 === 400 && $cols640 === 80 && $lines640 === 25 && $px640Ok && $px640Color === 12, true],
+		['inkey() returns queued key presses in FIFO order and "" when empty', $emptyKey === '' && $k1 === 'a' && $k2 === ' ' && $k3 === '', true],
+		['keydown() tracks held keys with arrow/space aliases and release', $kdArrow && $kdAlias && $kdSpace && is_array($kdList) && in_array('arrowleft', $kdList) && $kdReleased === false, true],
+		['screen_mode(false) restores REPL mode and screen() reports "off"', $modeRestored === $prevMode && $screenAfterOff === 'off', true],
 	];
 
 	$passed = 0;

@@ -80,6 +80,14 @@ return call_user_func(function($verbose) {
 		}
 	}
 
+	ob_start();
+	$catPrintOk = cat($base . '/hello.txt');
+	$catPrinted = ob_get_clean();
+	$catReturnStr = cat($base . '/hello.txt', true);
+	$catServerStr = cat('README.md', true);
+	$catMissing = @cat($base . '/no_such_file.txt');
+	$catDir = @cat($base);
+
 	file_put_contents($base . '/mod.bop', '<?bop return "vfs_included_ok";');
 	$includedVal = include($base . '/mod.bop');
 
@@ -109,6 +117,7 @@ return call_user_func(function($verbose) {
 		['ls() lists dir, glob wildcard, single file, and false on missing', is_array($lsHere) && !in_array('.', $lsHere) && in_array('hello.txt', $lsHere) && in_array('sub', $lsHere) && in_array('hello.txt', $lsWildcard) && $lsSingle === ['hello.txt'] && $lsMissing === false, true],
 		['ls(null, true) returns metadata entries', $lsLongHasHello, true],
 		['basename with suffix', basename('/var/log/app.log', '.log'), 'app'],
+		['cat() prints VFS file, returns string, reads server file, and rejects missing/dir', $catPrintOk === true && $catPrinted === "Hello VFS!\n" && $catReturnStr === 'Hello VFS!' && is_string($catServerStr) && strpos($catServerStr, 'BOPWEBCLI') !== false && $catMissing === false && $catDir === false, true],
 		['include() loads BOP file from localStorage VFS', $includedVal, 'vfs_included_ok'],
 		['unlink + rmdir cleanup', $unlinkOk && $rmdirOk, true],
 	];
