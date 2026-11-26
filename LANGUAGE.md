@@ -293,6 +293,7 @@ Persistent browser filesystem backed by `localStorage` (`lib/vfs.js` + `lib/file
 | Command | Description | Example |
 |---|---|---|
 | `cat($file, $return = false)` | Prints a text file from VFS (or server fallback) to the terminal, or returns its string when `$return = true`. | `cat("/tmp/note.txt");` or `cat("README.md");` |
+| `edit($file = 'untitled.bop')` | Opens the syntax-highlighted BOP source code editor overlay for a VFS (or server) file and saves edits back to VFS. | `edit("mysource.bop");` |
 | `file_get_contents($file)` | Reads entire file contents into a string, or `false` if missing. | `$txt = file_get_contents("/tmp/note.txt");` |
 | `file_put_contents($file, $data, $flags = 0)` | Writes a string (or array of strings) to a file; pass `FILE_APPEND` to append. Returns byte count. | `file_put_contents("/tmp/note.txt", "Hi\n", FILE_APPEND);` |
 | `file($file, $flags = 0)` | Reads a file into an array of lines (supports `FILE_IGNORE_NEW_LINES \| FILE_SKIP_EMPTY_LINES`). | `$lines = file("/tmp/note.txt", FILE_IGNORE_NEW_LINES);` |
@@ -356,6 +357,10 @@ Provides terminal geometry queries, a 2D character grid (`text`), and unified ha
 | `pencolor($colorcode = null)` | Gets active color code (default `15`), or sets pen color using VGA palette index `0..255` or `#RGB`/`#RRGGBB` hex string. | `pencolor(14);` or `pencolor('#ff5500');` |
 | `pixel($x, $y, $colorcode = null)` | Draws a single pixel at `(x, y)` in VRAM (auto-enters `320x200` if inactive) using active `pencolor()` or optional `$colorcode`. | `pixel(160, 100);` |
 | `line($x, $y, $x2, $y2, $colorcode = null)` | Draws a crisp 1px line from `(x, y)` to `(x2, y2)` using Bresenham rasterization into VRAM. | `line(0, 0, 319, 199);` |
+| `box($x, $y, $x2, $y2, $colorcode = null, $fill = false)` | Draws a rectangle outline or solid filled box from `(x, y)` to `(x2, y2)` in VRAM. | `box(10, 10, 60, 40, 14, true);` |
+| `circle($cx, $cy, $r, $colorcode = null, $fill = false)` | Draws a circle outline or filled disc centered at `($cx, $cy)` with radius `$r` in VRAM. | `circle(160, 100, 24, 11, true);` |
+| `screen_save()` | Snapshots the active pixel VRAM into an offscreen backup buffer for fast dirty-rect redraws. | `screen_save();` |
+| `screen_restore($x = null, $y = null, $x2 = null, $y2 = null)` | Restores the full screen (`null`) or a rectangular region from the `screen_save()` snapshot. | `screen_restore(90, 90, 120, 120);` |
 | `cls()` | Clears the active text/pixel framebuffer (and resets cursor to `(1, 1)`) or clears the jQuery Terminal in REPL mode. | `cls();` |
 | `locate($row, $col = 1)` | Moves text cursor to 1-based `($row, $col)` (activates `"text"` mode if inactive; works inside pixel modes too). | `locate(5, 10); echo "Menu";` |
 | `cursor_row()` | Returns the current 1-based cursor row inside the screen framebuffer. | `echo cursor_row();` |
@@ -375,6 +380,7 @@ Provides terminal geometry queries, a 2D character grid (`text`), and unified ha
 | `play($mml, $channel = 0, $wait = true)` | Plays BASIC Music Macro Language (`T` tempo, `O` octave, `</>` shift, `L` length, `A-G` notes with `#/-`, `R/P` rests, `MN/ML/MS`). | `play("T140 O4 L8 C E G > C");` |
 | `note_on($channel = 0, $note_or_freq = 440, $velocity = 100)` | Starts a sustained FM note on `$channel` (`0..8`) until `note_off()` or `sound_stop()`. | `note_on(0, "C4");` |
 | `note_off($channel = null)` | Releases active note on `$channel` (or all channels if `null`). | `note_off(0);` |
+| `sound_freq($channel = 0, $note_or_freq = 440, $glide_ms = 25)` | Smoothly glides an active FM voice's pitch (or starts one) without re-triggering attack. | `sound_freq(0, 220, 35);` |
 | `sound_stop()` | Immediately silences all active and scheduled sound channels. | `sound_stop();` |
 | `volume($level = null)` | Gets (`null`) or sets master output volume (`0..100`). | `volume(75);` |
 
@@ -575,13 +581,15 @@ Run these scripts directly from the `bop >` prompt with `include '...'` (or `$in
 | `demo/pacman_demo.bop` | Playable Pac-Man arcade game with maze, pellets, power pellets, 4 AI ghosts, and warp tunnel in `320x200` VRAM. | `$includeBop('demo/pacman_demo.bop');` |
 | `demo/tetris_demo.bop` | Playable Tetris arcade game with 7-bag pieces, wall kicks, ghost piece, bevel tiles, and Korobeiniki FM music/SFX in `320x200` VRAM. | `$includeBop('demo/tetris_demo.bop');` |
 | `demo/gridrunner_demo.bop` | Llamasoft Gridrunner-inspired arcade game with neon coordinate grid, splitting droids, pods, X/Y zappers, and AdLib FM SFX. | `$includeBop('demo/gridrunner_demo.bop');` |
+| `demo/digdug_demo.bop` | Playable Dig Dug arcade game with layered dirt digging, harpoon pump, falling boulders, Pookas, Fygars, and AdLib FM SFX. | `$includeBop('demo/digdug_demo.bop');` |
+| `demo/supersprint_demo.bop` | Atari Super Sprint-style `640x400` 2D racer with smooth spline circuits, `screen_save()`/`screen_restore()` rendering, drift physics, 3 AI cars, oil slicks, wrenches, and continuous dual-channel FM motor audio. | `$includeBop('demo/supersprint_demo.bop');` |
 | `demo/sound_demo.bop` | AdLib-style 9-channel FM synthesizer demo featuring arcade SFX, polyphonic chords, MML playback, and custom FM patches. | `$includeBop('demo/sound_demo.bop');` |
 | `test/unit_test_string.bop` | Runs 58 string, `banner()`, and Perl `split()` assertions (`$unit_test_verbose = true;` for detailed output). | `include 'test/unit_test_string.bop';` |
 | `test/unit_test_date.bop` | Runs 16 Oracle date/number formatting and conversion assertions. | `include 'test/unit_test_date.bop';` |
 | `test/unit_test_cron.bop` | Runs 11 cron registration, override, deletion, and matcher assertions. | `include 'test/unit_test_cron.bop';` |
-| `test/unit_test_file.bop` | Runs 20 VFS file, directory, `cd()`/`pwd()`/`ls()`, `cat()`, stream, `glob()`, and `include()` assertions. | `include 'test/unit_test_file.bop';` |
+| `test/unit_test_file.bop` | Runs 22 VFS file, directory, `cd()`/`pwd()`/`ls()`, `cat()`, `edit()`, stream, `glob()`, and `include()` assertions. | `include 'test/unit_test_file.bop';` |
 | `test/unit_test_math.bop` | Runs 15 math, trig, rounding, PRNG, and base-conversion assertions. | `include 'test/unit_test_math.bop';` |
 | `test/unit_test_array.bop` | Runs 17 array transform, set, reduction, and sort assertions. | `include 'test/unit_test_array.bop';` |
 | `test/unit_test_sqlite.bop` | Runs 7 `SQLite3` and `PDO` SQL/transaction/JOIN persistence assertions. | `include 'test/unit_test_sqlite.bop';` |
-| `test/unit_test_screen.bop` | Runs 20 screen geometry, text framebuffer, `320x200`/`640x400` pixel VRAM, `pencolor()`, `pixel()`, `line()`, `inkey()`, `keydown()`, and ANSI assertions. | `include 'test/unit_test_screen.bop';` |
-| `test/unit_test_sound.bop` | Runs 8 AdLib FM synthesizer assertions (`sound()`, `voice()`, `play()`, `note_on()`, `note_off()`, `sound_stop()`, `volume()`, MML parser). | `include 'test/unit_test_sound.bop';` |
+| `test/unit_test_screen.bop` | Runs 22 screen geometry, text framebuffer, `320x200`/`640x400` pixel VRAM, `pencolor()`, `pixel()`, `line()`, `box()`, `circle()`, `screen_save()`, `screen_restore()`, `inkey()`, `keydown()`, and ANSI assertions. | `include 'test/unit_test_screen.bop';` |
+| `test/unit_test_sound.bop` | Runs 9 AdLib FM synthesizer assertions (`sound()`, `voice()`, `play()`, `note_on()`, `note_off()`, `sound_freq()`, `sound_stop()`, `volume()`, MML parser). | `include 'test/unit_test_sound.bop';` |

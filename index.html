@@ -95,6 +95,261 @@
             border-color: #888;
             color: #fff;
         }
+        /* BOP Source Code Editor Overlay */
+        #bop-editor-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10050;
+            background: #0b0f14;
+            color: #e2e8f0;
+            flex-direction: column;
+            font-family: ui-monospace, 'Cascadia Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+        }
+        #bop-editor-overlay.active {
+            display: flex;
+        }
+        .bop-ed-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 10px 16px;
+            background: #111720;
+            border-bottom: 1px solid #1e293b;
+            flex-shrink: 0;
+        }
+        .bop-ed-file {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+        }
+        .bop-ed-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+        #bop-editor-path {
+            background: #0b0f14;
+            color: #f8fafc;
+            border: 1px solid #263244;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            padding: 5px 10px;
+            min-width: 200px;
+            max-width: 420px;
+            width: 100%;
+            outline: none;
+        }
+        #bop-editor-path:focus {
+            border-color: #38bdf8;
+        }
+        .bop-ed-meta {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        .bop-ed-meta.dirty {
+            color: #fbbf24;
+        }
+        .bop-ed-meta.saved {
+            color: #4ade80;
+        }
+        .bop-ed-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .bop-ed-btn {
+            background: #1a2330;
+            color: #e2e8f0;
+            border: 1px solid #2c3a4f;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 6px 14px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .bop-ed-btn:hover {
+            background: #243042;
+            border-color: #475569;
+        }
+        .bop-ed-btn:focus-visible {
+            outline: 2px solid #38bdf8;
+            outline-offset: 1px;
+        }
+        .bop-ed-btn.primary {
+            background: #0284c7;
+            border-color: #0369a1;
+            color: #ffffff;
+        }
+        .bop-ed-btn.primary:hover {
+            background: #0369a1;
+        }
+        .bop-ed-btn.run {
+            background: #15803d;
+            border-color: #166534;
+            color: #ffffff;
+        }
+        .bop-ed-btn.run:hover {
+            background: #166534;
+        }
+        .bop-ed-btn.danger {
+            background: #b91c1c;
+            border-color: #991b1b;
+            color: #ffffff;
+        }
+        .bop-ed-btn.danger:hover {
+            background: #991b1b;
+        }
+        #bop-editor-confirm {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #2a1810;
+            border-bottom: 1px solid #7c2d12;
+            color: #fed7aa;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        #bop-editor-confirm.visible {
+            display: flex;
+        }
+        .bop-ed-confirm-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bop-ed-workspace {
+            position: relative;
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            background: #0b0f14;
+        }
+        #bop-editor-gutter {
+            width: 54px;
+            padding: 14px 8px 14px 4px;
+            background: #0f151d;
+            border-right: 1px solid #1e293b;
+            color: #475569;
+            font-size: 14px;
+            line-height: 22px;
+            text-align: right;
+            overflow: hidden;
+            user-select: none;
+            flex-shrink: 0;
+            box-sizing: border-box;
+            font-variant-numeric: tabular-nums;
+        }
+        .bop-ed-ln {
+            height: 22px;
+            line-height: 22px;
+        }
+        .bop-ed-ln.active {
+            color: #cbd5e1;
+        }
+        .bop-ed-surface {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+        }
+        #bop-editor-pre,
+        #bop-editor-textarea {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            padding: 14px 16px;
+            border: 0;
+            box-sizing: border-box;
+            font-family: ui-monospace, 'Cascadia Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+            font-size: 14px;
+            line-height: 22px;
+            tab-size: 4;
+            -moz-tab-size: 4;
+            white-space: pre;
+            overflow: auto;
+            letter-spacing: normal;
+            word-spacing: normal;
+        }
+        #bop-editor-pre {
+            pointer-events: none;
+            background: transparent;
+            color: #e2e8f0;
+            z-index: 1;
+        }
+        #bop-editor-textarea {
+            resize: none;
+            background: transparent;
+            color: transparent;
+            caret-color: #38bdf8;
+            outline: none;
+            z-index: 2;
+        }
+        #bop-editor-textarea::selection {
+            background: rgba(56, 189, 248, 0.28);
+            color: transparent;
+        }
+        /* Dark syntax token overrides for Prism inside the editor */
+        #bop-editor-pre .token {
+            background: transparent !important;
+        }
+        #bop-editor-pre .token.comment,
+        #bop-editor-pre .token.prolog,
+        #bop-editor-pre .token.doctype,
+        #bop-editor-pre .token.cdata { color: #64748b; font-style: italic; }
+        #bop-editor-pre .token.punctuation { color: #94a3b8; }
+        #bop-editor-pre .token.delimiter.important,
+        #bop-editor-pre .token.php.language-php > .token.delimiter { color: #f472b6; font-weight: 600; }
+        #bop-editor-pre .token.keyword { color: #c084fc; }
+        #bop-editor-pre .token.function { color: #60a5fa; }
+        #bop-editor-pre .token.variable { color: #fbbf24; }
+        #bop-editor-pre .token.string,
+        #bop-editor-pre .token.char,
+        #bop-editor-pre .token.attr-value { color: #4ade80; }
+        #bop-editor-pre .token.number,
+        #bop-editor-pre .token.boolean,
+        #bop-editor-pre .token.constant { color: #fb923c; }
+        #bop-editor-pre .token.operator { color: #38bdf8; }
+        #bop-editor-pre .token.class-name { color: #2dd4bf; }
+        .bop-ed-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 6px 16px;
+            background: #111720;
+            border-top: 1px solid #1e293b;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-shrink: 0;
+        }
+        .bop-ed-msg {
+            color: #4ade80;
+            min-height: 16px;
+        }
+        .bop-ed-msg.error {
+            color: #f87171;
+        }
+        .bop-ed-shortcuts {
+            color: #64748b;
+            white-space: nowrap;
+        }
+        #bop-editor-cursor {
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -102,6 +357,40 @@
         <button id="screen-exit-btn" type="button" title="Return to BOP prompt">ESC: Exit Screen</button>
         <pre id="screen-framebuffer-pre"></pre>
         <canvas id="screen-framebuffer-canvas"></canvas>
+    </div>
+
+    <div id="bop-editor-overlay" role="dialog" aria-modal="true" aria-label="BOP Source Code Editor">
+        <div class="bop-ed-header">
+            <div class="bop-ed-file">
+                <span class="bop-ed-title">BOP Editor</span>
+                <input id="bop-editor-path" type="text" spellcheck="false" autocomplete="off" aria-label="VFS file path" />
+                <span id="bop-editor-state" class="bop-ed-meta">New VFS file</span>
+            </div>
+            <div class="bop-ed-actions">
+                <button id="bop-editor-save" class="bop-ed-btn primary" type="button" title="Save to VFS (Ctrl+S)">Save</button>
+                <button id="bop-editor-run" class="bop-ed-btn run" type="button" title="Save to VFS and execute (Ctrl+Enter / F5)">Save &amp; Run</button>
+                <button id="bop-editor-close" class="bop-ed-btn" type="button" title="Close editor (Esc)">Close</button>
+            </div>
+        </div>
+        <div id="bop-editor-confirm">
+            <span>You have unsaved changes. Discard edits and return to the terminal?</span>
+            <div class="bop-ed-confirm-actions">
+                <button id="bop-editor-discard" class="bop-ed-btn danger" type="button">Discard</button>
+                <button id="bop-editor-cancel-close" class="bop-ed-btn" type="button">Keep Editing</button>
+            </div>
+        </div>
+        <div class="bop-ed-workspace">
+            <div id="bop-editor-gutter" aria-hidden="true"></div>
+            <div class="bop-ed-surface">
+                <pre id="bop-editor-pre" aria-hidden="true"></pre>
+                <textarea id="bop-editor-textarea" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="BOP source code"></textarea>
+            </div>
+        </div>
+        <div class="bop-ed-footer">
+            <span id="bop-editor-msg" class="bop-ed-msg"></span>
+            <span class="bop-ed-shortcuts">Ctrl+S Save · Ctrl+Enter Run · Tab Indent · Esc Close</span>
+            <span id="bop-editor-cursor">Ln 1, Col 1</span>
+        </div>
     </div>
 
     <!-- 1. jQuery -->
@@ -124,6 +413,7 @@
     <script src="./lib/minisql.js"></script>
     <script src="./lib/screen_buffer.js"></script>
     <script src="./lib/adlib.js"></script>
+    <script src="./lib/bop_editor.js"></script>
     <script src="./lib/bop_bridge.js"></script>
 
     <script>
@@ -168,6 +458,20 @@
             registerBopStreamFunctions(bop, vfs);
             registerBopEngineExtensions(bop);
 
+            const bopEditor = createBopEditor({
+                vfs: vfs,
+                fetch: typeof fetch === 'function' ? fetch : null,
+                getTerm: function() { return term; },
+                onRunFile: function(normPath) {
+                    const code = '<?bop include ' + JSON.stringify(normPath) + ';';
+                    bop.execute(code, normPath).fail(function(err) {
+                        if (term && typeof term.error === 'function') {
+                            term.error(formatBopError(err.message || String(err)));
+                        }
+                    });
+                }
+            });
+
             // Build and expose $bridge and $meta to BOP
             const appBridge = createBopBridge({
                 $: $,
@@ -177,6 +481,7 @@
                 miniSql: miniSql,
                 screenBuffer: screenBuffer,
                 adlib: adlib,
+                bopEditor: bopEditor,
                 getTerm: function() { return term; }
             });
 

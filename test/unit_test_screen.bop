@@ -70,6 +70,22 @@ return call_user_func(function($verbose) {
 	cls();
 	$clearedPx = $bridge->screenGetPixel(10, 10);
 
+	// Test fast box(), circle(), screen_save(), and screen_restore() primitives
+	box(10, 10, 20, 20, 11, true);
+	$boxFillIn = $bridge->screenGetPixel(15, 15);
+	$boxFillOut = $bridge->screenGetPixel(9, 10);
+	box(30, 10, 40, 20, 13, false);
+	$boxEdge = $bridge->screenGetPixel(30, 15);
+	$boxHollow = $bridge->screenGetPixel(35, 15);
+	circle(80, 40, 6, 14, true);
+	$circleCenter = $bridge->screenGetPixel(80, 40);
+	$circleEdge = $bridge->screenGetPixel(86, 40);
+	$savedOk = screen_save();
+	box(10, 10, 20, 20, 4, true);
+	$dirtyPx = $bridge->screenGetPixel(15, 15);
+	$restoredOk = screen_restore(10, 10, 20, 20);
+	$restoredPx = $bridge->screenGetPixel(15, 15);
+
 	// Test 640x400 hardware pixel framebuffer mode
 	$ok640 = screen(640, 400);
 	$mode640 = screen();
@@ -122,6 +138,8 @@ return call_user_func(function($verbose) {
 		['line(0, 0, 20, 20) rasterizes diagonal pixels into VRAM', $lineOk && $lineStart === 10 && $lineMid === 10 && $lineEnd === 10 && $lineOff === 0, true],
 		['locate() + echo renders 8x8 bitmap glyph pixels into VRAM', $textLine320 === 'A' && $glyphLit, true],
 		['cls() clears pixel VRAM back to 0', $clearedPx, 0],
+		['box() and circle() draw filled/outline shapes cleanly in VRAM', $boxFillIn === 11 && $boxFillOut === 0 && $boxEdge === 13 && $boxHollow === 0 && $circleCenter === 14 && $circleEdge === 14, true],
+		['screen_save() and screen_restore() snapshot and restore dirty rectangles', $savedOk && $dirtyPx === 4 && $restoredOk && $restoredPx === 11, true],
 		['screen(640, 400) sets 640x400 pixels, 80x25 grid, and plots (639, 399)', $ok640 && $mode640 === '640x400' && $w640 === 640 && $h640 === 400 && $cols640 === 80 && $lines640 === 25 && $px640Ok && $px640Color === 12, true],
 		['inkey() returns queued key presses in FIFO order and "" when empty', $emptyKey === '' && $k1 === 'a' && $k2 === ' ' && $k3 === '', true],
 		['keydown() tracks held keys with arrow/space aliases and release', $kdArrow && $kdAlias && $kdSpace && is_array($kdList) && in_array('arrowleft', $kdList) && $kdReleased === false, true],

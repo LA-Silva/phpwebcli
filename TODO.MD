@@ -120,7 +120,7 @@
 ### Screen, Terminal & Pixel Framebuffer Control (`lib/screen.bop`, `lib/screen_buffer.js`, `demo/screen_demo.bop`)
 - [x] Screen dimension wrappers: `screen_columns()`, `screen_lines()`, `screen_width()`, `screen_height()`
 - [x] Text & hardware-style pixel framebuffer overlay (`screen('320x200')`, `screen(640, 400)`): `screen()`, `screen_mode()`, `cls()`, `locate()`, `cursor_row()`, `cursor_col()`, `screen_line()`, `pencolor()`, `pixel()`, `line()`, `inkey()`, `keydown()`, `8x8`/`8x16` bitmap text rendering, blinking cursor, VT100 deferred wrap, `Escape`/exit button, and ANSI CSI escapes (`ESC[H`, `ESC[A/B/C/D`, `ESC[2J`, `ESC[K`)
-- [x] Interactive demo scripts (`demo/screen_demo.bop` / `screen_demo()`, `demo/pixel_demo.bop` / `pixel_demo()`, `demo/invaders_demo.bop` / `invaders_demo()`, `demo/pacman_demo.bop` / `pacman_demo()`, `demo/tetris_demo.bop` / `tetris_demo()`, `demo/gridrunner_demo.bop` / `gridrunner_demo()`, `demo/sound_demo.bop` / `sound_demo()`)
+- [x] Interactive demo scripts (`demo/screen_demo.bop` / `screen_demo()`, `demo/pixel_demo.bop` / `pixel_demo()`, `demo/invaders_demo.bop` / `invaders_demo()`, `demo/pacman_demo.bop` / `pacman_demo()`, `demo/tetris_demo.bop` / `tetris_demo()`, `demo/gridrunner_demo.bop` / `gridrunner_demo()`, `demo/digdug_demo.bop` / `digdug_demo()`, `demo/supersprint_demo.bop` / `supersprint_demo()`, `demo/sound_demo.bop` / `sound_demo()`)
 
 ### AdLib FM Sound Synthesizer (`lib/sound.bop`, `lib/adlib.js`)
 - [x] 9-channel Web Audio 2-operator OPL2-style FM synth with presets (`lead`, `bass`, `brass`, `organ`, `bell`, `strings`, `laser`, `boom`, `chomp`, `coin`, `beep`, `sine`) and custom FM operator patches

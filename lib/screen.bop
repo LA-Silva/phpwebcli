@@ -79,6 +79,34 @@ if (!function_exists('line')) {
 	}
 }
 
+if (!function_exists('box')) {
+	function box($x, $y, $x2, $y2, $colorcode = null, $fill = false) {
+		global $bridge;
+		return (bool) $bridge->screenBox((int) $x, (int) $y, (int) $x2, (int) $y2, $colorcode, (bool) $fill);
+	}
+}
+
+if (!function_exists('circle')) {
+	function circle($cx, $cy, $r, $colorcode = null, $fill = false) {
+		global $bridge;
+		return (bool) $bridge->screenCircle((int) $cx, (int) $cy, (int) $r, $colorcode, (bool) $fill);
+	}
+}
+
+if (!function_exists('screen_save')) {
+	function screen_save() {
+		global $bridge;
+		return (bool) $bridge->screenSave();
+	}
+}
+
+if (!function_exists('screen_restore')) {
+	function screen_restore($x = null, $y = null, $x2 = null, $y2 = null) {
+		global $bridge;
+		return (bool) $bridge->screenRestore($x, $y, $x2, $y2);
+	}
+}
+
 if (!function_exists('locate')) {
 	function locate($row, $col = 1) {
 		global $bridge;

@@ -273,3 +273,18 @@ if (!function_exists('cat')) {
 	}
 }
 
+if (!function_exists('edit')) {
+	function edit($filename = 'untitled.bop') {
+		global $bridge;
+		$path = trim((string) $filename);
+		if ($path === '') {
+			$path = 'untitled.bop';
+		}
+		if (is_dir($path)) {
+			trigger_error("edit: " . $path . ": Is a directory", E_USER_WARNING);
+			return false;
+		}
+		return (bool) $bridge->editorOpen($path);
+	}
+}
+

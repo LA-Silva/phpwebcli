@@ -1,0 +1,840 @@
+<?bop
+/**
+ * digdug_demo.bop — Playable Dig Dug arcade demo in BOP.
+ *
+ * Uses:
+ *   screen('320x200'), cls(), pencolor(), pixel(), line(), locate(),
+ *   inkey(), keydown(), usleep(), and AdLib FM audio (voice, sound, play).
+ *
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('demo/digdug_demo.bop');
+ *   include 'demo/digdug_demo.bop';
+ *
+ * Controls:
+ *   Arrow Keys / WASD   Dig tunnels and move
+ *   Space               Fire harpoon & pump enemies until they pop!
+ *   Q or ESC            Quit back to bop > prompt
+ */
+
+if (!function_exists('__digdug_dir_vec')) {
+	function __digdug_dir_vec($dir) {
+		if ($dir === 'L') return [0, -1];
+		if ($dir === 'R') return [0, 1];
+		if ($dir === 'U') return [-1, 0];
+		if ($dir === 'D') return [1, 0];
+		return [0, 0];
+	}
+}
+
+if (!function_exists('__digdug_draw_player')) {
+	function __digdug_draw_player($cx, $cy, $dir, $step) {
+		// White/blue Dig Dug suit with visor & pump backpack
+		pencolor(15);
+		line($cx - 2, $cy - 4, $cx + 2, $cy - 4);
+		line($cx - 3, $cy - 3, $cx + 3, $cy - 3);
+		line($cx - 3, $cy - 2, $cx + 3, $cy - 2);
+		pencolor(9);
+		line($cx - 3, $cy - 1, $cx + 3, $cy - 1);
+		line($cx - 2, $cy,     $cx + 2, $cy);
+		line($cx - 2, $cy + 1, $cx + 2, $cy + 1);
+		pencolor(15);
+		line($cx - 2, $cy + 2, $cx + 2, $cy + 2);
+		// Visor eye & facing highlight
+		pencolor(12);
+		if ($dir === 'L') {
+			line($cx - 3, $cy - 3, $cx - 1, $cy - 3);
+			pixel($cx - 2, $cy - 2);
+		} elseif ($dir === 'R') {
+			line($cx + 1, $cy - 3, $cx + 3, $cy - 3);
+			pixel($cx + 2, $cy - 2);
+		} elseif ($dir === 'U') {
+			line($cx - 1, $cy - 4, $cx + 1, $cy - 4);
+		} else {
+			line($cx - 1, $cy - 2, $cx + 1, $cy - 2);
+		}
+		// Animated boots
+		pencolor(14);
+		if ($step === 0) {
+			line($cx - 3, $cy + 3, $cx - 1, $cy + 3);
+			line($cx + 1, $cy + 3, $cx + 3, $cy + 3);
+		} else {
+			pixel($cx - 2, $cy + 3);
+			pixel($cx + 2, $cy + 3);
+			pixel($cx - 1, $cy + 4);
+			pixel($cx + 1, $cy + 4);
+		}
+	}
+}
+
+if (!function_exists('__digdug_draw_enemy')) {
+	function __digdug_draw_enemy($cx, $cy, $type, $ghost, $inflate, $anim, $dir) {
+		if ($ghost) {
+			// Translucent floating eyes through earth
+			pencolor(15);
+			pixel($cx - 2, $cy - 1);
+			pixel($cx + 2, $cy - 1);
+			pencolor($type === 'pooka' ? 12 : 10);
+			pixel($cx - 2, $cy);
+			pixel($cx + 2, $cy);
+			return;
+		}
+		$r = 3 + $inflate;
+		$bodyCol = ($type === 'pooka') ? ($inflate > 0 ? 12 : 4) : ($inflate > 0 ? 10 : 2);
+		$hiCol = ($type === 'pooka') ? 12 : 10;
+		pencolor($bodyCol);
+		for ($dy = -$r + 1; $dy <= $r - 1; $dy++) {
+			$w = $r - intdiv(abs($dy), 2);
+			line($cx - $w, $cy + $dy, $cx + $w, $cy + $dy);
+		}
+		pencolor($hiCol);
+		line($cx - $r + 2, $cy - $r + 1, $cx + $r - 2, $cy - $r + 1);
+
+		if ($type === 'pooka') {
+			// Yellow goggles
+			pencolor(14);
+			line($cx - 3, $cy - 1, $cx - 1, $cy - 1);
+			line($cx + 1, $cy - 1, $cx + 3, $cy - 1);
+			pencolor(15);
+			pixel($cx - 2, $cy - 1);
+			pixel($cx + 2, $cy - 1);
+		} else {
+			// Fygar dragon crest & red eyes
+			pencolor(14);
+			pixel($cx, $cy - $r);
+			pixel($cx + ($dir === 'L' ? 1 : -1), $cy - $r + 1);
+			pencolor(15);
+			pixel($cx - 2, $cy - 1);
+			pixel($cx + 2, $cy - 1);
+			pencolor(12);
+			pixel($cx + ($dir === 'L' ? -2 : 2), $cy);
+		}
+		if ($inflate === 0) {
+			pencolor(14);
+			if ($anim === 0) {
+				pixel($cx - 2, $cy + $r);
+				pixel($cx + 2, $cy + $r);
+			} else {
+				pixel($cx - 1, $cy + $r);
+				pixel($cx + 1, $cy + $r);
+			}
+		}
+	}
+}
+
+if (!function_exists('__digdug_draw_rock')) {
+	function __digdug_draw_rock($cx, $cy, $wobble) {
+		$ox = $wobble ? (($wobble % 2 === 0) ? -1 : 1) : 0;
+		pencolor(7);
+		line($cx - 3 + $ox, $cy - 3, $cx + 3 + $ox, $cy - 3);
+		line($cx - 4 + $ox, $cy - 2, $cx + 4 + $ox, $cy - 2);
+		line($cx - 4 + $ox, $cy - 1, $cx + 4 + $ox, $cy - 1);
+		line($cx - 4 + $ox, $cy,     $cx + 4 + $ox, $cy);
+		line($cx - 4 + $ox, $cy + 1, $cx + 4 + $ox, $cy + 1);
+		line($cx - 3 + $ox, $cy + 2, $cx + 3 + $ox, $cy + 2);
+		line($cx - 2 + $ox, $cy + 3, $cx + 2 + $ox, $cy + 3);
+		pencolor(15);
+		line($cx - 2 + $ox, $cy - 3, $cx + 1 + $ox, $cy - 3);
+		pixel($cx - 3 + $ox, $cy - 2);
+		pencolor(8);
+		line($cx - 2 + $ox, $cy + 2, $cx + 3 + $ox, $cy + 2);
+		pixel($cx + 3 + $ox, $cy + 1);
+	}
+}
+
+if (!function_exists('digdug_demo')) {
+	function digdug_demo($maxFrames = 0) {
+		screen('320x200');
+		cls();
+		srand(1982);
+
+		$COLS = 22;
+		$ROWS = 15;
+		$CELL = 10;
+		$BX = 50; // x = 50..269
+		$BY = 22; // y = 22..171
+
+		// AdLib FM sound channels:
+		// 0: walking motif, 1: harpoon/inflate, 2: pop/boulder smash, 3: fygar fire, 4: jingles
+		voice(0, ['modWave' => 'sine', 'carWave' => 'square', 'modMult' => 2, 'carMult' => 1, 'modIndex' => 1.5, 'modDecay' => 0.08, 'attack' => 0.004, 'decay' => 0.07, 'sustain' => 0.3, 'release' => 0.03, 'slide' => 1, 'noise' => 0]);
+		voice(1, 'coin');
+		voice(2, 'boom');
+		voice(3, ['modWave' => 'square', 'carWave' => 'sawtooth', 'modMult' => 0.5, 'carMult' => 0.5, 'modIndex' => 6.0, 'modDecay' => 0.2, 'attack' => 0.005, 'decay' => 0.22, 'sustain' => 0.2, 'release' => 0.08, 'slide' => 0.7, 'noise' => 0.8]);
+		voice(4, 'lead');
+
+		$walkNotes = [330, 392, 440, 392, 330, 294, 330, 392];
+
+		$score = 0;
+		$highScore = 0;
+		$lives = 3;
+		$round = 1;
+		$running = true;
+		$frameCount = 0;
+
+		while ($running && screen_mode()) {
+			// Build 22x15 underground grid; row 0 is open blue sky
+			$dug = [];
+			for ($r = 0; $r < $ROWS; $r++) {
+				$rowArr = [];
+				for ($c = 0; $c < $COLS; $c++) {
+					$rowArr[] = ($r === 0);
+				}
+				$dug[] = $rowArr;
+			}
+
+			// Carve central vertical shaft & starting chamber (c=10, r=0..7)
+			for ($r = 0; $r <= 7; $r++) {
+				$dug[$r][10] = true;
+			}
+			$dug[7][9] = true;
+			$dug[7][11] = true;
+
+			// Carve 4 horizontal/vertical pockets for Pookas & Fygars
+			$caves = [
+				['r1' => 3,  'r2' => 3,  'c1' => 2,  'c2' => 6,  'type' => 'pooka'],
+				['r1' => 4,  'r2' => 7,  'c1' => 16, 'c2' => 16, 'type' => 'fygar'],
+				['r1' => 10, 'r2' => 10, 'c1' => 3,  'c2' => 7,  'type' => 'fygar'],
+				['r1' => 11, 'r2' => 11, 'c1' => 14, 'c2' => 18, 'type' => 'pooka']
+			];
+			if ($round >= 2) {
+				$caves[] = ['r1' => 6, 'r2' => 6, 'c1' => 3, 'c2' => 6, 'type' => 'pooka'];
+			}
+
+			$enemies = [];
+			foreach ($caves as $idx => $cv) {
+				for ($rr = $cv['r1']; $rr <= $cv['r2']; $rr++) {
+					for ($cc = $cv['c1']; $cc <= $cv['c2']; $cc++) {
+						$dug[$rr][$cc] = true;
+					}
+				}
+				$ec = intdiv($cv['c1'] + $cv['c2'], 2);
+				$er = intdiv($cv['r1'] + $cv['r2'], 2);
+				$enemies[] = [
+					'type' => $cv['type'],
+					'px' => $ec * $CELL,
+					'py' => $er * $CELL,
+					'dir' => ($cv['c1'] === $cv['c2']) ? 'D' : (($idx % 2 === 0) ? 'R' : 'L'),
+					'ghost' => false,
+					'ghostCooldown' => 55 + $idx * 22,
+					'inflate' => 0,
+					'deflateTimer' => 0,
+					'fireCooldown' => 60 + $idx * 15,
+					'fireWarn' => 0,
+					'fireActive' => 0,
+					'fireDir' => 'L'
+				];
+			}
+
+			// Place 3 falling boulders inside undug rock pockets
+			$rockCoords = [[2, 4], [3, 14], [8, 17], [9, 5]];
+			$rocks = [];
+			foreach ($rockCoords as $rc) {
+				$rr = $rc[0];
+				$cc = $rc[1];
+				$dug[$rr][$cc] = true;
+				$rocks[] = [
+					'r' => $rr,
+					'c' => $cc,
+					'y' => $rr * $CELL,
+					'state' => 'idle', // idle -> wobble -> fall -> broken
+					'timer' => 0,
+					'kills' => 0
+				];
+			}
+
+			$px = 10 * $CELL;
+			$py = 7 * $CELL;
+			$pDir = 'R';
+			$walkStep = 0;
+			$walkNoteIdx = 0;
+			$walkTick = 0;
+
+			// Harpoon / Pump state
+			$pumpActive = false;
+			$pumpLen = 0;
+			$pumpTargetIdx = -1;
+			$pumpHoldTicks = 0;
+
+			$rocksDropped = 0;
+			$veggieTimer = 0;
+			$veggieSpawned = false;
+
+			$statusMsg = 'ROUND ' . $round;
+			$statusTimer = 28;
+			$roundCleared = false;
+			$playerHit = false;
+			$roundTick = 0;
+
+			play("T200 O4 L16 E G > C E < G > C4", 4, false);
+
+			while ($running && screen_mode() && !$roundCleared && $lives > 0) {
+				$frameCount++;
+				$roundTick++;
+				if ($maxFrames > 0 && $frameCount > $maxFrames) {
+					$running = false;
+					break;
+				}
+
+				// 1. Keyboard input
+				$wantDir = '';
+				$edgePump = false;
+				while (true) {
+					$k = inkey();
+					if ($k === '') break;
+					$kl = lower($k);
+					if ($kl === 'q') {
+						$running = false;
+						break;
+					}
+					if ($kl === 'arrowleft' || $kl === 'a') $wantDir = 'L';
+					elseif ($kl === 'arrowright' || $kl === 'd') $wantDir = 'R';
+					elseif ($kl === 'arrowup' || $kl === 'w') $wantDir = 'U';
+					elseif ($kl === 'arrowdown' || $kl === 's') $wantDir = 'D';
+					elseif ($kl === ' ') $edgePump = true;
+				}
+				if (!$running) break;
+
+				if ($wantDir === '') {
+					if (keydown('left') || keydown('a')) $wantDir = 'L';
+					elseif (keydown('right') || keydown('d')) $wantDir = 'R';
+					elseif (keydown('up') || keydown('w')) $wantDir = 'U';
+					elseif (keydown('down') || keydown('s')) $wantDir = 'D';
+				}
+				$heldPump = keydown(' ');
+
+				// 2. Harpoon / Pump action vs Player movement
+				if ($edgePump && !$pumpActive) {
+					$pumpActive = true;
+					$pumpLen = 4;
+					$pumpTargetIdx = -1;
+					$pumpHoldTicks = 0;
+					sound(760, 45, 1);
+				}
+
+				if ($pumpActive) {
+					$pv = __digdug_dir_vec($pDir);
+					if ($pumpTargetIdx >= 0 && isset($enemies[$pumpTargetIdx])) {
+						// Currently latched onto an enemy
+						if ($edgePump) {
+							$enemies[$pumpTargetIdx]['inflate']++;
+							$enemies[$pumpTargetIdx]['deflateTimer'] = 24;
+							sound(420 + $enemies[$pumpTargetIdx]['inflate'] * 140, 75, 1);
+							if ($enemies[$pumpTargetIdx]['inflate'] >= 4) {
+								$popped = $enemies[$pumpTargetIdx];
+								$popR = intdiv($popped['py'] + 5, $CELL);
+								$layerPts = ($popR >= 10) ? 500 : (($popR >= 6) ? 300 : 200);
+								if ($popped['type'] === 'fygar' && ($pDir === 'L' || $pDir === 'R')) {
+									$layerPts *= 2;
+								}
+								$score += $layerPts;
+								if ($score > $highScore) $highScore = $score;
+								$statusMsg = '+' . $layerPts . ' POP!';
+								$statusTimer = 26;
+								sound(140, 180, 2);
+
+								$nextEnemies = [];
+								for ($ei = 0; $ei < count($enemies); $ei++) {
+									if ($ei !== $pumpTargetIdx) $nextEnemies[] = $enemies[$ei];
+								}
+								$enemies = $nextEnemies;
+								$pumpActive = false;
+								$pumpTargetIdx = -1;
+							}
+						}
+						if ($wantDir !== '') {
+							// Moving detaches pump
+							$pumpActive = false;
+							$pumpTargetIdx = -1;
+						}
+					} else {
+						// Extend harpoon up to 22px
+						$pumpLen += 4;
+						$tipX = $px + 5 + $pv[1] * $pumpLen;
+						$tipY = $py + 5 + $pv[0] * $pumpLen;
+						$tipC = intdiv($tipX, $CELL);
+						$tipR = intdiv($tipY, $CELL);
+
+						if ($tipC < 0 || $tipC >= $COLS || $tipR < 0 || $tipR >= $ROWS) {
+							$pumpActive = false;
+						} else {
+							// Check enemy collision with harpoon tip
+							for ($ei = 0; $ei < count($enemies); $ei++) {
+								if ($enemies[$ei]['ghost']) continue;
+								$ex = $enemies[$ei]['px'] + 5;
+								$ey = $enemies[$ei]['py'] + 5;
+								if (abs($tipX - $ex) <= 6 && abs($tipY - $ey) <= 6) {
+									$pumpTargetIdx = $ei;
+									$enemies[$ei]['inflate'] = max(1, $enemies[$ei]['inflate'] + 1);
+									$enemies[$ei]['deflateTimer'] = 24;
+									sound(520, 70, 1);
+									break;
+								}
+							}
+							if ($pumpTargetIdx < 0 && ($pumpLen >= 22 || !$dug[$tipR][$tipC])) {
+								if (!$heldPump) $pumpActive = false;
+								elseif ($pumpLen >= 22) $pumpActive = false;
+							}
+						}
+					}
+				}
+
+				if (!$pumpActive && $wantDir !== '') {
+					// Smooth 2px movement with clean grid-tile alignment
+					$moved = false;
+					if ($px % $CELL === 0 && $py % $CELL === 0) {
+						$pDir = $wantDir;
+						$moved = true;
+					} else {
+						if (($wantDir === 'L' || $wantDir === 'R') && ($py % $CELL === 0)) {
+							$pDir = $wantDir;
+							$moved = true;
+						} elseif (($wantDir === 'U' || $wantDir === 'D') && ($px % $CELL === 0)) {
+							$pDir = $wantDir;
+							$moved = true;
+						} else {
+							// Keep finishing current tile alignment before turning
+							$moved = true;
+						}
+					}
+
+					if ($moved) {
+						$dv = __digdug_dir_vec($pDir);
+						$nx = max(0, min(($COLS - 1) * $CELL, $px + $dv[1] * 2));
+						$ny = max(0, min(($ROWS - 1) * $CELL, $py + $dv[0] * 2));
+
+						// Prevent walking directly into idle rocks
+						$blocked = false;
+						$tc = intdiv($nx + 5, $CELL);
+						$tr = intdiv($ny + 5, $CELL);
+						foreach ($rocks as $rk) {
+							if ($rk['state'] !== 'broken' && $rk['state'] !== 'fall' && $rk['c'] === $tc && $rk['r'] === $tr) {
+								$blocked = true;
+								break;
+							}
+						}
+						if (!$blocked) {
+							$px = $nx;
+							$py = $ny;
+							$walkTick++;
+							if ($walkTick % 4 === 0) {
+								$walkStep = 1 - $walkStep;
+								sound($walkNotes[$walkNoteIdx], 65, 0);
+								$walkNoteIdx = ($walkNoteIdx + 1) % count($walkNotes);
+							}
+						}
+					}
+
+					// Dig earth tile under Dig Dug
+					$pc = intdiv($px + 5, $CELL);
+					$pr = intdiv($py + 5, $CELL);
+					if ($pr >= 1 && $pr < $ROWS && $pc >= 0 && $pc < $COLS && !$dug[$pr][$pc]) {
+						$dug[$pr][$pc] = true;
+						$score += 10;
+						if ($score > $highScore) $highScore = $score;
+					}
+				}
+
+				// 3. Bonus Veggie check
+				if ($veggieTimer > 0) {
+					$veggieTimer--;
+					if (abs($px - 10 * $CELL) <= 5 && abs($py - 7 * $CELL) <= 5) {
+						$score += 400;
+						if ($score > $highScore) $highScore = $score;
+						$veggieTimer = 0;
+						$statusMsg = 'BONUS +400!';
+						$statusTimer = 28;
+						play("T220 O5 L16 C E G > C8", 4, false);
+					}
+				}
+
+				// 4. Update Boulders (wobble when dug underneath, then fall & crush!)
+				for ($ri = 0; $ri < count($rocks); $ri++) {
+					$rk = $rocks[$ri];
+					if ($rk['state'] === 'broken') continue;
+
+					if ($rk['state'] === 'idle') {
+						$belowR = $rk['r'] + 1;
+						if ($belowR < $ROWS && $dug[$belowR][$rk['c']]) {
+							$rk['state'] = 'wobble';
+							$rk['timer'] = 18;
+							sound(190, 60, 2);
+						}
+					} elseif ($rk['state'] === 'wobble') {
+						$rk['timer']--;
+						if ($rk['timer'] <= 0) {
+							$rk['state'] = 'fall';
+							$rocksDropped++;
+							if ($rocksDropped >= 2 && !$veggieSpawned) {
+								$veggieSpawned = true;
+								$veggieTimer = 220;
+							}
+						}
+					} elseif ($rk['state'] === 'fall') {
+						$rk['y'] += 4;
+						$curRockR = intdiv($rk['y'] + 4, $CELL);
+						$rk['r'] = $curRockR;
+						if ($curRockR >= 0 && $curRockR < $ROWS) {
+							$dug[$curRockR][$rk['c']] = true;
+						}
+
+						// Crush enemies in boulder path
+						$nextEn = [];
+						foreach ($enemies as $en) {
+							if (abs(($rk['c'] * $CELL + 5) - ($en['px'] + 5)) <= 7 && abs(($rk['y'] + 5) - ($en['py'] + 5)) <= 7) {
+								$rk['kills']++;
+								$crushPts = ($rk['kills'] >= 2) ? 1500 : 1000;
+								$score += $crushPts;
+								if ($score > $highScore) $highScore = $score;
+								$statusMsg = 'CRUSH +' . $crushPts . '!';
+								$statusTimer = 30;
+								sound(125, 220, 2);
+							} else {
+								$nextEn[] = $en;
+							}
+						}
+						$enemies = $nextEn;
+
+						// Crush player if standing beneath falling boulder
+						if (abs(($rk['c'] * $CELL + 5) - ($px + 5)) <= 6 && abs(($rk['y'] + 5) - ($py + 5)) <= 6) {
+							$playerHit = true;
+						}
+
+						// Stop on solid dirt or bottom
+						$nextR = intdiv($rk['y'] + $CELL, $CELL);
+						if ($nextR >= $ROWS || ($nextR >= 1 && !$dug[$nextR][$rk['c']] && ($rk['y'] % $CELL) <= 3)) {
+							$rk['state'] = 'broken';
+							sound(110, 140, 2);
+						}
+					}
+					$rocks[$ri] = $rk;
+				}
+
+				if (count($enemies) === 0) {
+					$roundCleared = true;
+					$score += 500;
+					if ($score > $highScore) $highScore = $score;
+					$round++;
+					$statusMsg = 'STAGE CLEAR!';
+					play("T210 O5 L16 C D E G > C4", 4, false);
+				}
+
+				// 5. Update Enemies (tunnel patrol, inflate/deflate, ghost mode, Fygar fire)
+				for ($ei = 0; $ei < count($enemies); $ei++) {
+					$en = $enemies[$ei];
+
+					// Deflate slowly if inflated & not currently being pumped
+					if ($en['inflate'] > 0) {
+						$en['deflateTimer']--;
+						if ($en['deflateTimer'] <= 0) {
+							$en['inflate']--;
+							$en['deflateTimer'] = 22;
+						}
+						$enemies[$ei] = $en;
+						continue;
+					}
+
+					// Fygar flame breath state machine
+					if ($en['fireWarn'] > 0) {
+						$en['fireWarn']--;
+						if ($en['fireWarn'] === 0) {
+							$en['fireActive'] = 10;
+							sound(180, 220, 3);
+						}
+						$enemies[$ei] = $en;
+						continue;
+					}
+					if ($en['fireActive'] > 0) {
+						$en['fireActive']--;
+						$fVec = ($en['fireDir'] === 'L') ? -1 : 1;
+						for ($ft = 1; $ft <= 3; $ft++) {
+							$fx = $en['px'] + $fVec * $ft * $CELL;
+							$fy = $en['py'];
+							$fc = intdiv($fx + 5, $CELL);
+							$fr = intdiv($fy + 5, $CELL);
+							if ($fc < 0 || $fc >= $COLS || !$dug[$fr][$fc]) break;
+							if (abs($fx - $px) <= 6 && abs($fy - $py) <= 6) {
+								$playerHit = true;
+							}
+						}
+						$enemies[$ei] = $en;
+						continue;
+					}
+
+					if ($en['ghost']) {
+						// Float diagonally through dirt toward Dig Dug until entering a dug tunnel
+						if ($roundTick % 2 === 0) {
+							if ($en['px'] < $px) $en['px'] += 1;
+							elseif ($en['px'] > $px) $en['px'] -= 1;
+							if ($en['py'] < $py) $en['py'] += 1;
+							elseif ($en['py'] > $py) $en['py'] -= 1;
+						}
+						$ec = intdiv($en['px'] + 5, $CELL);
+						$er = intdiv($en['py'] + 5, $CELL);
+						if ($er >= 0 && $er < $ROWS && $ec >= 0 && $ec < $COLS && $dug[$er][$ec] && ($en['px'] % $CELL === 0 || $en['py'] % $CELL === 0)) {
+							$en['px'] = $ec * $CELL;
+							$en['py'] = $er * $CELL;
+							$en['ghost'] = false;
+							$en['ghostCooldown'] = max(45, 95 - $round * 8);
+						}
+					} else {
+						// Move through dug tunnels
+						$enSpeedMod = ($round >= 3) ? 1 : 2;
+						if ($roundTick % $enSpeedMod === 0) {
+							if ($en['px'] % $CELL === 0 && $en['py'] % $CELL === 0) {
+								$ec = intdiv($en['px'], $CELL);
+								$er = intdiv($en['py'], $CELL);
+
+								// Fygar breath trigger if horizontally aligned with player in same cave
+								if ($en['type'] === 'fygar' && $er === intdiv($py + 5, $CELL) && abs($ec - intdiv($px + 5, $CELL)) <= 4) {
+									$en['fireCooldown']--;
+									if ($en['fireCooldown'] <= 0) {
+										$en['fireDir'] = ($px < $en['px']) ? 'L' : 'R';
+										$en['dir'] = $en['fireDir'];
+										$en['fireWarn'] = 10;
+										$en['fireCooldown'] = 75;
+										$enemies[$ei] = $en;
+										continue;
+									}
+								}
+
+								$en['ghostCooldown']--;
+								if ($en['ghostCooldown'] <= 0) {
+									$en['ghost'] = true;
+									$enemies[$ei] = $en;
+									continue;
+								}
+
+								// Choose valid dug neighbor favoring direction toward player
+								$dirs = ['L', 'R', 'U', 'D'];
+								$valid = [];
+								foreach ($dirs as $cand) {
+									$cv = __digdug_dir_vec($cand);
+									$nr = $er + $cv[0];
+									$nc = $ec + $cv[1];
+									if ($nr >= 0 && $nr < $ROWS && $nc >= 0 && $nc < $COLS && $dug[$nr][$nc]) {
+										$valid[] = $cand;
+									}
+								}
+								if (count($valid) > 0) {
+									$best = $valid[0];
+									$bestD = 999999;
+									foreach ($valid as $cand) {
+										$cv = __digdug_dir_vec($cand);
+										$tx = ($ec + $cv[1]) * $CELL;
+										$ty = ($er + $cv[0]) * $CELL;
+										$d2 = ($tx - $px) * ($tx - $px) + ($ty - $py) * ($ty - $py);
+										if ($d2 < $bestD) {
+											$bestD = $d2;
+											$best = $cand;
+										}
+									}
+									$en['dir'] = $best;
+								}
+							}
+							$ev = __digdug_dir_vec($en['dir']);
+							$en['px'] = max(0, min(($COLS - 1) * $CELL, $en['px'] + $ev[1] * 2));
+							$en['py'] = max(0, min(($ROWS - 1) * $CELL, $en['py'] + $ev[0] * 2));
+						}
+					}
+
+					if (!$en['ghost'] && abs($en['px'] - $px) <= 6 && abs($en['py'] - $py) <= 6) {
+						$playerHit = true;
+					}
+					$enemies[$ei] = $en;
+				}
+
+				if ($playerHit) {
+					$lives--;
+					sound(110, 420, 2);
+				}
+
+				if ($statusTimer > 0) {
+					$statusTimer--;
+					if ($statusTimer === 0) $statusMsg = '';
+				}
+
+				// 6. Render frame into 320x200 VRAM
+				cls();
+
+				// Top HUD
+				pencolor(14);
+				locate(1, 2);
+				echo "DIG DUG";
+				pencolor(15);
+				locate(1, 11);
+				echo sprintf("SCORE:%05d  HI:%05d  RND:%d  LIVES:%d", $score, $highScore, $round, max(0, $lives));
+				if ($statusMsg !== '') {
+					pencolor(11);
+					locate(2, 16);
+					echo $statusMsg;
+				}
+				pencolor(7);
+				locate(25, 3);
+				echo "ARROWS/WASD:Dig/Move   SPACE:Pump   Q/ESC:Exit";
+
+				// Sky strip (row 0)
+				pencolor('#2060D8');
+				for ($sy = $BY; $sy < $BY + $CELL; $sy++) {
+					line($BX, $sy, $BX + $COLS * $CELL - 1, $sy);
+				}
+
+				// Layered Earth (scanline runs skip dug tunnels!)
+				$layerColors = [
+					1 => '#E0A830',
+					2 => '#C87820', 3 => '#C87820', 4 => '#C87820', 5 => '#C87820',
+					6 => '#A04818', 7 => '#A04818', 8 => '#A04818', 9 => '#A04818',
+					10 => '#702010', 11 => '#702010', 12 => '#702010', 13 => '#702010', 14 => '#702010'
+				];
+				for ($r = 1; $r < $ROWS; $r++) {
+					pencolor($layerColors[$r]);
+					$y0 = $BY + $r * $CELL;
+					$c = 0;
+					while ($c < $COLS) {
+						if ($dug[$r][$c]) {
+							$c++;
+							continue;
+						}
+						$cStart = $c;
+						while ($c < $COLS && !$dug[$r][$c]) {
+							$c++;
+						}
+						$xStart = $BX + $cStart * $CELL;
+						$xEnd = $BX + $c * $CELL - 1;
+						for ($yy = $y0; $yy < $y0 + $CELL; $yy++) {
+							line($xStart, $yy, $xEnd, $yy);
+						}
+					}
+				}
+
+				// Frame border around underground well
+				pencolor(8);
+				line($BX - 1, $BY - 1, $BX + $COLS * $CELL, $BY - 1);
+				line($BX - 1, $BY + $ROWS * $CELL, $BX + $COLS * $CELL, $BY + $ROWS * $CELL);
+				line($BX - 1, $BY - 1, $BX - 1, $BY + $ROWS * $CELL);
+				line($BX + $COLS * $CELL, $BY - 1, $BX + $COLS * $CELL, $BY + $ROWS * $CELL);
+
+				// Draw Bonus Veggie
+				if ($veggieTimer > 0) {
+					$vx = $BX + 10 * $CELL + 5;
+					$vy = $BY + 7 * $CELL + 5;
+					pencolor(10);
+					line($vx - 1, $vy - 4, $vx + 1, $vy - 4);
+					line($vx, $vy - 3, $vx, $vy - 2);
+					pencolor(12);
+					line($vx - 2, $vy - 1, $vx + 2, $vy - 1);
+					line($vx - 2, $vy,     $vx + 2, $vy);
+					line($vx - 1, $vy + 1, $vx + 1, $vy + 1);
+					pixel($vx, $vy + 2);
+				}
+
+				// Draw Boulders
+				foreach ($rocks as $rk) {
+					if ($rk['state'] === 'broken') continue;
+					$wob = ($rk['state'] === 'wobble') ? $rk['timer'] : 0;
+					__digdug_draw_rock($BX + $rk['c'] * $CELL + 5, $BY + $rk['y'] + 5, $wob);
+				}
+
+				// Draw Harpoon Hose
+				if ($pumpActive) {
+					$pv = __digdug_dir_vec($pDir);
+					$hx0 = $BX + $px + 5;
+					$hy0 = $BY + $py + 5;
+					$hx1 = $hx0 + $pv[1] * $pumpLen;
+					$hy1 = $hy0 + $pv[0] * $pumpLen;
+					pencolor(15);
+					line($hx0, $hy0, $hx1, $hy1);
+					pencolor(11);
+					pixel($hx1, $hy1);
+				}
+
+				// Draw Enemies + Fygar Fire Breath
+				$eAnim = ($frameCount >> 2) % 2;
+				foreach ($enemies as $en) {
+					$ex = $BX + $en['px'] + 5;
+					$ey = $BY + $en['py'] + 5;
+					if ($en['fireActive'] > 0) {
+						$fVec = ($en['fireDir'] === 'L') ? -1 : 1;
+						for ($ft = 1; $ft <= 3; $ft++) {
+							$fc = intdiv($en['px'] + $fVec * $ft * $CELL + 5, $CELL);
+							$fr = intdiv($en['py'] + 5, $CELL);
+							if ($fc < 0 || $fc >= $COLS || !$dug[$fr][$fc]) break;
+							$fx = $BX + $fc * $CELL + 5;
+							pencolor(($ft % 2 === 0) ? 14 : 12);
+							line($fx - 4, $ey - 2, $fx + 4, $ey - 2);
+							line($fx - 4, $ey,     $fx + 4, $ey);
+							line($fx - 4, $ey + 2, $fx + 4, $ey + 2);
+						}
+					}
+					__digdug_draw_enemy($ex, $ey, $en['type'], $en['ghost'], $en['inflate'], $eAnim, $en['dir']);
+				}
+
+				// Draw Dig Dug
+				if (!$playerHit) {
+					__digdug_draw_player($BX + $px + 5, $BY + $py + 5, $pDir, $walkStep);
+				}
+
+				if ($playerHit) {
+					if ($lives > 0) {
+						pencolor(14);
+						locate(2, 14);
+						echo "OOPS! -1 LIFE";
+						usleep(600000);
+						$px = 10 * $CELL;
+						$py = 7 * $CELL;
+						$pDir = 'R';
+						$pumpActive = false;
+						$pumpTargetIdx = -1;
+						$playerHit = false;
+					} else {
+						play("T160 O4 L16 G F# F E D# D C4", 4, false);
+						pencolor(12);
+						locate(11, 13);
+						echo "GAME OVER! HI:" . $highScore;
+						pencolor(15);
+						locate(13, 6);
+						echo "SPACE: Play Again   Q/ESC: Exit";
+						while ($running && screen_mode()) {
+							$k2 = lower(inkey());
+							if ($k2 === 'q') {
+								$running = false;
+								break;
+							}
+							if ($k2 === ' ') {
+								$score = 0;
+								$lives = 3;
+								$round = 1;
+								break;
+							}
+							usleep(50000);
+						}
+						break;
+					}
+					continue;
+				}
+
+				if ($roundCleared) {
+					pencolor(10);
+					locate(2, 13);
+					echo "STAGE CLEAR! +500";
+					usleep(650000);
+					break;
+				}
+
+				usleep(40000);
+			}
+		}
+
+		sound_stop();
+		for ($c = 0; $c < 5; $c++) {
+			voice($c, 'lead');
+		}
+		pencolor(15);
+		if (screen_mode()) {
+			screen(0);
+		}
+		return true;
+	}
+}
+
+if (!isset($digdug_no_autorun) || !$digdug_no_autorun) {
+	digdug_demo();
+}

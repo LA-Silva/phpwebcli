@@ -1,11 +1,13 @@
 <?bop
 return call_user_func(function($verbose) {
+	global $bridge;
 	$prevCwd = pwd();
 	$base = '/tmp/__vfs_unit_test';
 
 	// Clean any leftover test directory
 	if (is_file($base . '/sub/moved.txt')) unlink($base . '/sub/moved.txt');
 	if (is_file($base . '/sub/copied.txt')) unlink($base . '/sub/copied.txt');
+	if (is_file($base . '/edited.bop')) unlink($base . '/edited.bop');
 	if (is_file($base . '/hello.txt')) unlink($base . '/hello.txt');
 	if (is_file($base . '/lines.txt')) unlink($base . '/lines.txt');
 	if (is_file($base . '/stream.txt')) unlink($base . '/stream.txt');
@@ -91,11 +93,25 @@ return call_user_func(function($verbose) {
 	file_put_contents($base . '/mod.bop', '<?bop return "vfs_included_ok";');
 	$includedVal = include($base . '/mod.bop');
 
+	// Test edit() VFS editor workflow (open new -> edit -> save -> reload -> include -> dir reject)
+	$editNewOk = edit($base . '/edited.bop');
+	$editNewState = $bridge->editorState();
+	$bridge->editorSetContent('<?bop return "edited_vfs_ok";');
+	$editSaveOk = $bridge->editorSave();
+	$editCloseOk = $bridge->editorClose(true);
+	$editSavedContent = file_get_contents($base . '/edited.bop');
+	$editIncludeVal = include($base . '/edited.bop');
+	$editReloadOk = edit($base . '/edited.bop');
+	$editReloadState = $bridge->editorState();
+	$bridge->editorClose(true);
+	$editDirReject = @edit($base);
+
 	$unlinkOk = unlink($base . '/hello.txt')
 		&& unlink($base . '/lines.txt')
 		&& unlink($base . '/stream.txt')
 		&& unlink($base . '/touched.txt')
 		&& unlink($base . '/mod.bop')
+		&& unlink($base . '/edited.bop')
 		&& unlink($base . '/sub/moved.txt');
 	$rmdirOk = rmdir($base . '/sub') && rmdir($base) && !file_exists($base);
 
@@ -119,6 +135,8 @@ return call_user_func(function($verbose) {
 		['basename with suffix', basename('/var/log/app.log', '.log'), 'app'],
 		['cat() prints VFS file, returns string, reads server file, and rejects missing/dir', $catPrintOk === true && $catPrinted === "Hello VFS!\n" && $catReturnStr === 'Hello VFS!' && is_string($catServerStr) && strpos($catServerStr, 'BOPWEBCLI') !== false && $catMissing === false && $catDir === false, true],
 		['include() loads BOP file from localStorage VFS', $includedVal, 'vfs_included_ok'],
+		['edit() creates, edits, saves to VFS, and makes file runnable via include()', $editNewOk && $editNewState['sourceType'] === 'new' && $editSaveOk && $editCloseOk && $editSavedContent === '<?bop return "edited_vfs_ok";' && $editIncludeVal === 'edited_vfs_ok', true],
+		['edit() reloads saved VFS content and rejects directory paths', $editReloadOk && $editReloadState['sourceType'] === 'vfs' && $editReloadState['content'] === '<?bop return "edited_vfs_ok";' && $editDirReject === false, true],
 		['unlink + rmdir cleanup', $unlinkOk && $rmdirOk, true],
 	];
 

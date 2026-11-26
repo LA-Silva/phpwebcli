@@ -1,0 +1,795 @@
+<?bop
+/**
+ * supersprint_demo.bop — High-resolution (640x400) Atari Super Sprint-style 2D arcade racer in BOP.
+ *
+ * Uses:
+ *   screen('640x400'), cls(), pencolor(), box(), circle(), line(), locate(),
+ *   screen_save(), screen_restore(), inkey(), keydown(), usleep(),
+ *   and continuous dual-channel AdLib FM motor audio (voice, note_on, sound_freq, sound, play).
+ *
+ * How to run from the browser BOP CLI (bop > prompt):
+ *   $includeBop('demo/supersprint_demo.bop');
+ *   include 'demo/supersprint_demo.bop';
+ *
+ * Controls:
+ *   ArrowUp / W / Space   Accelerate (also revs engine on grid)
+ *   ArrowDown / S         Brake / Reverse
+ *   ArrowLeft / A         Steer Left
+ *   ArrowRight / D        Steer Right
+ *   M                     Mute / Unmute Sound
+ *   Q or ESC              Quit back to bop > prompt
+ */
+
+if (!function_exists('__sprint_tracks')) {
+	function __sprint_tracks() {
+		return [
+			[
+				'name' => 'OVAL SPEEDWAY',
+				'halfW' => 38,
+				'pts' => [
+					[320, 82], [470, 82], [560, 118], [574, 200],
+					[552, 296], [460, 336], [326, 326], [262, 296],
+					[184, 336], [88, 304], [66, 208], [90, 114], [190, 82]
+				],
+				'oils' => [[542, 266], [192, 332]],
+				'wrench' => [72, 196]
+			],
+			[
+				'name' => 'TWISTER CHICANE',
+				'halfW' => 34,
+				'pts' => [
+					[300, 78], [480, 78], [566, 122], [548, 204],
+					[428, 218], [436, 292], [556, 312], [504, 348],
+					[304, 336], [168, 336], [78, 296], [88, 208],
+					[198, 192], [102, 126], [154, 78]
+				],
+				'oils' => [[432, 254], [176, 196]],
+				'wrench' => [548, 312]
+			],
+			[
+				'name' => 'CHAMPIONSHIP GP',
+				'halfW' => 32,
+				'pts' => [
+					[290, 76], [492, 76], [572, 116], [568, 214],
+					[476, 236], [560, 298], [496, 348], [356, 344],
+					[316, 260], [244, 264], [220, 344], [102, 340],
+					[68, 264], [146, 204], [76, 130], [134, 76]
+				],
+				'oils' => [[508, 228], [280, 262], [106, 180]],
+				'wrench' => [356, 344]
+			]
+		];
+	}
+}
+
+if (!function_exists('__sprint_build_track')) {
+	function __sprint_build_track($trackDef) {
+		$pts = $trackDef['pts'];
+		$nPts = count($pts);
+		$halfW = $trackDef['halfW'];
+		$curbW = $halfW + 5;
+		$YMIN = 34;
+		$YMAX = 381;
+		$minX = $curbW + 4;
+		$maxX = 635 - $curbW;
+		$minY = $YMIN + $curbW + 2;
+		$maxY = $YMAX - $curbW - 2;
+
+		// Dense Catmull-Rom closed spline (~8px spacing)
+		$way = [];
+		for ($i = 0; $i < $nPts; $i++) {
+			$p0 = $pts[($i - 1 + $nPts) % $nPts];
+			$p1 = $pts[$i];
+			$p2 = $pts[($i + 1) % $nPts];
+			$p3 = $pts[($i + 2) % $nPts];
+			$dist = hypot($p2[0] - $p1[0], $p2[1] - $p1[1]);
+			$steps = (int) ($dist / 8);
+			if ($steps < 4) $steps = 4;
+			for ($s = 0; $s < $steps; $s++) {
+				$t = $s / $steps;
+				$t2 = $t * $t;
+				$t3 = $t2 * $t;
+				$wx = 0.5 * ((2 * $p1[0])
+					+ (-$p0[0] + $p2[0]) * $t
+					+ (2 * $p0[0] - 5 * $p1[0] + 4 * $p2[0] - $p3[0]) * $t2
+					+ (-$p0[0] + 3 * $p1[0] - 3 * $p2[0] + $p3[0]) * $t3);
+				$wy = 0.5 * ((2 * $p1[1])
+					+ (-$p0[1] + $p2[1]) * $t
+					+ (2 * $p0[1] - 5 * $p1[1] + 4 * $p2[1] - $p3[1]) * $t2
+					+ (-$p0[1] + 3 * $p1[1] - 3 * $p2[1] + $p3[1]) * $t3);
+				if ($wx < $minX) $wx = $minX; elseif ($wx > $maxX) $wx = $maxX;
+				if ($wy < $minY) $wy = $minY; elseif ($wy > $maxY) $wy = $maxY;
+				$way[] = [$wx, $wy];
+			}
+		}
+
+		return [
+			'name' => $trackDef['name'],
+			'halfW' => $halfW,
+			'curbW' => $curbW,
+			'halfW2' => $halfW * $halfW,
+			'curbW2' => $curbW * $curbW,
+			'yMin' => $YMIN,
+			'yMax' => $YMAX,
+			'way' => $way,
+			'nWay' => count($way),
+			'oils' => $trackDef['oils'],
+			'wrench' => $trackDef['wrench']
+		];
+	}
+}
+
+if (!function_exists('__sprint_draw_track')) {
+	function __sprint_draw_track($trk) {
+		$way = $trk['way'];
+		$nWay = $trk['nWay'];
+		$halfW = $trk['halfW'];
+		$curbW = $trk['curbW'];
+
+		// 1. Lush emerald infield grass + stadium barrier rails
+		box(0, $trk['yMin'], 639, $trk['yMax'], '#186226', true);
+		box(0, $trk['yMin'], 639, $trk['yMin'] + 1, 7, true);
+		box(0, $trk['yMax'] - 1, 639, $trk['yMax'], 7, true);
+
+		// 2. Smooth red/white alternating rumble curbs along spline
+		for ($wi = 0; $wi < $nWay; $wi++) {
+			$wx = (int) ($way[$wi][0] + 0.5);
+			$wy = (int) ($way[$wi][1] + 0.5);
+			$curbCol = ((intdiv($wi, 2)) % 2 === 0) ? 12 : 15;
+			circle($wx, $wy, $curbW, $curbCol, true);
+		}
+
+		// 3. Smooth charcoal asphalt road surface
+		for ($wi = 0; $wi < $nWay; $wi++) {
+			$wx = (int) ($way[$wi][0] + 0.5);
+			$wy = (int) ($way[$wi][1] + 0.5);
+			circle($wx, $wy, $halfW, '#383E4C', true);
+		}
+
+		// 4. Subtle racing-line dashes
+		for ($wi = 2; $wi < $nWay; $wi += 4) {
+			$wx = (int) ($way[$wi][0] + 0.5);
+			$wy = (int) ($way[$wi][1] + 0.5);
+			box($wx - 1, $wy - 1, $wx + 1, $wy + 1, '#586072', true);
+		}
+
+		// 5. Checkered Start/Finish line at way[0]
+		$sfX = (int) ($way[0][0] + 0.5);
+		$sfY = (int) ($way[0][1] + 0.5);
+		$hw = $halfW - 3;
+		for ($dy = -$hw; $dy <= $hw - 2; $dy += 4) {
+			$even = (intdiv($dy + 80, 4) % 2 === 0);
+			box($sfX - 3, $sfY + $dy, $sfX, $sfY + $dy + 3, $even ? 15 : 0, true);
+			box($sfX + 1, $sfY + $dy, $sfX + 4, $sfY + $dy + 3, $even ? 0 : 15, true);
+		}
+
+		// 6. Glossy Oil Slicks
+		foreach ($trk['oils'] as $oil) {
+			$ox = $oil[0];
+			$oy = $oil[1];
+			circle($ox, $oy, 7, 0, true);
+			circle($ox - 3, $oy, 5, 0, true);
+			circle($ox + 3, $oy, 5, 0, true);
+			line($ox - 4, $oy - 2, $ox - 1, $oy - 2, 8);
+			line($ox + 1, $oy + 2, $ox + 4, $oy + 2, 8);
+		}
+
+		// Snapshot clean track into hardware VRAM backup for instant dirty-rect restores
+		screen_save();
+	}
+}
+
+if (!function_exists('__sprint_nearest_way')) {
+	function __sprint_nearest_way($trk, $x, $y, $hintIdx) {
+		$way = $trk['way'];
+		$nWay = $trk['nWay'];
+		$bestWi = $hintIdx % $nWay;
+		$bestD2 = 99999999.0;
+
+		for ($off = -8; $off <= 12; $off++) {
+			$wi = ($hintIdx + $off + $nWay) % $nWay;
+			$dx = $x - $way[$wi][0];
+			$dy = $y - $way[$wi][1];
+			$d2 = $dx * $dx + $dy * $dy;
+			if ($d2 < $bestD2) {
+				$bestD2 = $d2;
+				$bestWi = $wi;
+			}
+		}
+
+		// Fallback full search only if car jumped far off-track
+		if ($bestD2 > ($trk['curbW'] + 28) * ($trk['curbW'] + 28)) {
+			for ($wi = 0; $wi < $nWay; $wi++) {
+				$dx = $x - $way[$wi][0];
+				$dy = $y - $way[$wi][1];
+				$d2 = $dx * $dx + $dy * $dy;
+				if ($d2 < $bestD2) {
+					$bestD2 = $d2;
+					$bestWi = $wi;
+				}
+			}
+		}
+
+		return [$bestWi, $bestD2];
+	}
+}
+
+if (!function_exists('__sprint_draw_car')) {
+	function __sprint_draw_car($cx, $cy, $angle, $bodyCol, $trimCol) {
+		$ca = cos($angle);
+		$sa = sin($angle);
+		$ox = -$sa;
+		$oy = $ca;
+
+		// 4 F1 slick tires (3x3 black blocks)
+		$c5 = $ca * 5.0; $s5 = $sa * 5.0;
+		$o5x = $ox * 5.0; $o5y = $oy * 5.0;
+		$wx = (int) round($cx + $c5 + $o5x); $wy = (int) round($cy + $s5 + $o5y);
+		box($wx - 1, $wy - 1, $wx + 1, $wy + 1, 0, true);
+		$wx = (int) round($cx + $c5 - $o5x); $wy = (int) round($cy + $s5 - $o5y);
+		box($wx - 1, $wy - 1, $wx + 1, $wy + 1, 0, true);
+		$wx = (int) round($cx - $c5 + $o5x); $wy = (int) round($cy - $s5 + $o5y);
+		box($wx - 1, $wy - 1, $wx + 1, $wy + 1, 0, true);
+		$wx = (int) round($cx - $c5 - $o5x); $wy = (int) round($cy - $s5 - $o5y);
+		box($wx - 1, $wy - 1, $wx + 1, $wy + 1, 0, true);
+
+		// Tapered F1 chassis
+		$noseX = $cx + $ca * 8.0;
+		$noseY = $cy + $sa * 8.0;
+		$tailX = $cx - $ca * 7.0;
+		$tailY = $cy - $sa * 7.0;
+
+		pencolor($bodyCol);
+		line((int) round($tailX), (int) round($tailY), (int) round($noseX), (int) round($noseY));
+		line((int) round($tailX + $ox * 2), (int) round($tailY + $oy * 2), (int) round($noseX + $ox), (int) round($noseY + $oy));
+		line((int) round($tailX - $ox * 2), (int) round($tailY - $oy * 2), (int) round($noseX - $ox), (int) round($noseY - $oy));
+
+		// Front wing & rear spoiler
+		pencolor($trimCol);
+		line((int) round($tailX - $ox * 4), (int) round($tailY - $oy * 4), (int) round($tailX + $ox * 4), (int) round($tailY + $oy * 4));
+		line((int) round($noseX - $ox * 3), (int) round($noseY - $oy * 3), (int) round($noseX + $ox * 3), (int) round($noseY + $oy * 3));
+
+		// Driver helmet
+		$hx = (int) round($cx);
+		$hy = (int) round($cy);
+		box($hx - 1, $hy - 1, $hx + 1, $hy + 1, 15, true);
+	}
+}
+
+if (!function_exists('__sprint_draw_wrench')) {
+	function __sprint_draw_wrench($cx, $cy, $blink) {
+		pencolor($blink ? 15 : 14);
+		line($cx - 4, $cy - 4, $cx + 4, $cy + 4);
+		line($cx - 3, $cy - 5, $cx + 5, $cy + 3);
+		line($cx - 5, $cy - 2, $cx - 2, $cy - 5);
+		line($cx + 2, $cy + 5, $cx + 5, $cy + 2);
+		pixel($cx - 4, $cy - 4, '#885500');
+	}
+}
+
+if (!function_exists('supersprint_demo')) {
+	function supersprint_demo($maxFrames = 0) {
+		screen('640x400');
+		cls();
+		srand(1986);
+
+		$tracksDef = __sprint_tracks();
+		$LAPS_TARGET = 3;
+
+		// Continuous dual-channel AdLib FM F1 engine (0 = primary V8 sawtooth, 5 = sub-octave exhaust growl)
+		voice(0, [
+			'modWave' => 'square',
+			'carWave' => 'sawtooth',
+			'modMult' => 0.5,
+			'carMult' => 1,
+			'modIndex' => 2.6,
+			'modDecay' => 0.12,
+			'attack' => 0.008,
+			'decay' => 0.04,
+			'sustain' => 0.90,
+			'release' => 0.05,
+			'slide' => 1,
+			'noise' => 0.08
+		]);
+		voice(5, [
+			'modWave' => 'sine',
+			'carWave' => 'sawtooth',
+			'modMult' => 1,
+			'carMult' => 0.5,
+			'modIndex' => 1.6,
+			'modDecay' => 0.14,
+			'attack' => 0.01,
+			'decay' => 0.05,
+			'sustain' => 0.80,
+			'release' => 0.06,
+			'slide' => 1,
+			'noise' => 0.14
+		]);
+		voice(1, 'beep');
+		voice(2, ['modWave' => 'square', 'carWave' => 'sawtooth', 'modMult' => 3, 'carMult' => 1, 'modIndex' => 4.5, 'modDecay' => 0.14, 'attack' => 0.004, 'decay' => 0.12, 'sustain' => 0.1, 'release' => 0.04, 'slide' => 1.35, 'noise' => 0.45]);
+		voice(3, 'coin');
+		voice(4, 'boom');
+
+		$score = 0;
+		$highScore = 0;
+		$trackIdx = 0;
+		$wrenches = 0;
+		$turboLvl = 1;
+		$muted = false;
+		$running = true;
+		$frameCount = 0;
+
+		while ($running && screen_mode()) {
+			$trk = __sprint_build_track($tracksDef[$trackIdx % count($tracksDef)]);
+			$way = $trk['way'];
+			$nWay = $trk['nWay'];
+			$startPt = $way[0];
+			$nextPt = $way[3 % $nWay];
+			$startAng = atan2($nextPt[1] - $startPt[1], $nextPt[0] - $startPt[0]);
+
+			cls();
+			__sprint_draw_track($trk);
+
+			// Draw static HUD chrome ONCE per race
+			pencolor(14);
+			locate(1, 2);
+			echo "SUPER SPRINT 640x400";
+			pencolor(11);
+			locate(2, 2);
+			echo sprintf("%-18s", $trk['name']);
+			pencolor(7);
+			locate(25, 4);
+			echo "UP/W/SPACE: Gas  LEFT/RIGHT: Steer  DOWN/S: Brake  M: Mute  Q/ESC: Exit";
+
+			$lastHudTop = '';
+			$lastHudSub = '';
+			$lastStatus = '';
+
+			// Create 4 cars (index 0 = Player Red, 1..3 = AI rivals)
+			$carSpecs = [
+				['col' => 12, 'trim' => 14, 'off' => -10, 'baseSpd' => 0],
+				['col' => 9,  'trim' => 11, 'off' => 10,  'baseSpd' => 4.6 + ($trackIdx % 3) * 0.25],
+				['col' => 14, 'trim' => 15, 'off' => -14, 'baseSpd' => 4.2 + ($trackIdx % 3) * 0.22],
+				['col' => 10, 'trim' => 2,  'off' => 14,  'baseSpd' => 3.9 + ($trackIdx % 3) * 0.20]
+			];
+			$cars = [];
+			for ($ci = 0; $ci < 4; $ci++) {
+				$spIdx = ($nWay - 3 - $ci * 5 + $nWay) % $nWay;
+				$spPt = $way[$spIdx];
+				$cars[] = [
+					'x' => $spPt[0] - sin($startAng) * $carSpecs[$ci]['off'],
+					'y' => $spPt[1] + cos($startAng) * $carSpecs[$ci]['off'],
+					'vx' => 0.0,
+					'vy' => 0.0,
+					'ang' => $startAng,
+					'speed' => 0.0,
+					'lap' => 1,
+					'cp' => 0,
+					'wayIdx' => $spIdx,
+					'laneOff' => $carSpecs[$ci]['off'],
+					'aiSpeed' => $carSpecs[$ci]['baseSpd'],
+					'spin' => 0,
+					'col' => $carSpecs[$ci]['col'],
+					'trim' => $carSpecs[$ci]['trim'],
+					'finished' => false,
+					'finishRank' => 0
+				];
+			}
+
+			$wrenchActive = true;
+			$wrenchX = $trk['wrench'][0];
+			$wrenchY = $trk['wrench'][1];
+
+			$countdownTicks = 54;
+			$lastBeep = 4;
+			$raceOver = false;
+			$statusMsg = 'GET READY!';
+			$statusTimer = 45;
+			$raceTick = 0;
+			$dirtyRects = [];
+			$gantryWasDrawn = false;
+			$finishOrder = [];
+			$engineStarted = false;
+			$lastEngHz = 0;
+
+			if (!$muted) {
+				note_on(0, 115, 78);
+				note_on(5, 115, 65);
+				$engineStarted = true;
+				$lastEngHz = 115;
+			}
+
+			while ($running && screen_mode() && !$raceOver) {
+				$frameCount++;
+				$raceTick++;
+				if ($maxFrames > 0 && $frameCount > $maxFrames) {
+					$running = false;
+					break;
+				}
+
+				// 1. Keyboard input
+				while (true) {
+					$k = inkey();
+					if ($k === '') break;
+					$lk = lower($k);
+					if ($lk === 'q') {
+						$running = false;
+						break;
+					}
+					if ($lk === 'm') {
+						$muted = !$muted;
+						if ($muted) {
+							sound_stop();
+							$engineStarted = false;
+							$statusMsg = 'SOUND OFF';
+						} else {
+							note_on(0, 115, 78);
+							note_on(5, 115, 65);
+							$engineStarted = true;
+							$lastEngHz = 115;
+							$statusMsg = 'SOUND ON';
+						}
+						$statusTimer = 20;
+					}
+				}
+				if (!$running) break;
+
+				$steerLeft  = keydown('left')  || keydown('a');
+				$steerRight = keydown('right') || keydown('d');
+				$gasPressed = keydown('up')    || keydown('w') || keydown('space');
+				$brkPressed = keydown('down')  || keydown('s');
+
+				$targetEngHz = 115;
+
+				// 2. Starting lights countdown + grid revving
+				if ($countdownTicks > 0) {
+					$countdownTicks--;
+					$secLeft = intdiv($countdownTicks + 17, 18);
+					if ($secLeft < $lastBeep && $secLeft >= 1) {
+						$lastBeep = $secLeft;
+						if (!$muted) sound(520, 120, 1);
+						$statusMsg = 'START IN ' . $secLeft . '...';
+					}
+					if ($countdownTicks === 0) {
+						if (!$muted) sound(1040, 260, 1);
+						$statusMsg = 'GO!!';
+						$statusTimer = 25;
+					}
+					$targetEngHz = $gasPressed ? (240 + ($raceTick % 3) * 14) : (112 + ($raceTick % 2) * 5);
+				} else {
+					// 3. Player Car (Index 0) drift physics
+					$p = $cars[0];
+					$maxSpd = 5.3 + ($turboLvl - 1) * 0.55;
+					$accelRate = 0.28 + ($turboLvl - 1) * 0.05;
+					$turnRate = 0.14 + ($turboLvl - 1) * 0.015;
+					$grip = 0.18 + ($turboLvl - 1) * 0.03;
+
+					if ($p['spin'] > 0) {
+						$p['spin']--;
+						$p['ang'] += 0.42;
+						$p['vx'] *= 0.92;
+						$p['vy'] *= 0.92;
+					} else {
+						if ($steerLeft)  $p['ang'] -= $turnRate;
+						if ($steerRight) $p['ang'] += $turnRate;
+
+						$fx = cos($p['ang']);
+						$fy = sin($p['ang']);
+
+						if ($gasPressed) {
+							$p['vx'] += $fx * $accelRate;
+							$p['vy'] += $fy * $accelRate;
+						} elseif ($brkPressed) {
+							$p['vx'] -= $fx * 0.22;
+							$p['vy'] -= $fy * 0.22;
+						} else {
+							$p['vx'] *= 0.95;
+							$p['vy'] *= 0.95;
+						}
+
+						$curSpd = hypot($p['vx'], $p['vy']);
+						if ($curSpd > 0.1) {
+							$dot = ($p['vx'] * $fx + $p['vy'] * $fy);
+							$dirSign = ($dot >= 0) ? 1 : -1;
+							$targetVx = $fx * $curSpd * $dirSign;
+							$targetVy = $fy * $curSpd * $dirSign;
+							$p['vx'] += ($targetVx - $p['vx']) * $grip;
+							$p['vy'] += ($targetVy - $p['vy']) * $grip;
+						}
+					}
+
+					// Local spline distance gives fast 1px-accurate surface speed cap
+					$nearP = __sprint_nearest_way($trk, $p['x'], $p['y'], $p['wayIdx']);
+					$d2P = $nearP[1];
+					$surf = ($d2P <= $trk['halfW2']) ? 2 : (($d2P <= $trk['curbW2']) ? 1 : 0);
+					$localMax = ($surf === 2) ? $maxSpd : (($surf === 1) ? ($maxSpd * 0.72) : ($maxSpd * 0.48));
+					$spd = hypot($p['vx'], $p['vy']);
+					if ($spd > $localMax) {
+						$p['vx'] = ($p['vx'] / $spd) * $localMax;
+						$p['vy'] = ($p['vy'] / $spd) * $localMax;
+						$spd = $localMax;
+					}
+					$p['speed'] = $spd;
+
+					$nx = max(16.0, min(624.0, $p['x'] + $p['vx']));
+					$ny = max(44.0, min(370.0, $p['y'] + $p['vy']));
+					if ($surf >= 1 && $spd > 2.6) {
+						$nearNext = __sprint_nearest_way($trk, $nx, $ny, $nearP[0]);
+						if ($nearNext[1] > $trk['curbW2']) {
+							$p['vx'] *= 0.72;
+							$p['vy'] *= 0.72;
+							if (!$muted && $raceTick % 6 === 0) sound(135, 50, 4);
+						}
+					}
+					$p['x'] = $nx;
+					$p['y'] = $ny;
+
+					// Smooth continuous 3-gear F1 engine RPM pitch
+					$normSpd = min(1.0, $spd / $maxSpd);
+					$gearPos = ($normSpd * 3.0) - floor($normSpd * 2.999);
+					if ($gasPressed || $spd > 0.35) {
+						$targetEngHz = (int) (135 + $normSpd * 105 + $gearPos * 85);
+					} else {
+						$targetEngHz = 112 + ($raceTick % 2) * 4;
+					}
+
+					// Oil slick check
+					if ($p['spin'] === 0) {
+						foreach ($trk['oils'] as $oil) {
+							if (hypot($p['x'] - $oil[0], $p['y'] - $oil[1]) <= 13.0 && $spd > 1.5) {
+								$p['spin'] = 14;
+								if (!$muted) sound(680, 180, 2);
+								$statusMsg = 'OIL SLICK!';
+								$statusTimer = 24;
+								break;
+							}
+						}
+					}
+
+					// Gold Wrench pickup
+					if ($wrenchActive && hypot($p['x'] - $wrenchX, $p['y'] - $wrenchY) <= 18.0) {
+						$wrenchActive = false;
+						$wrenches++;
+						$score += 250;
+						if ($score > $highScore) $highScore = $score;
+						if ($wrenches % 2 === 0 && $turboLvl < 3) {
+							$turboLvl++;
+							$statusMsg = 'TURBO LV ' . $turboLvl . '!';
+						} else {
+							$statusMsg = 'WRENCH +250!';
+						}
+						$statusTimer = 28;
+						if (!$muted) sound('E6', 140, 3);
+					}
+
+					$cars[0] = $p;
+
+					// 4. Update AI Cars (Indices 1..3)
+					for ($ci = 1; $ci < 4; $ci++) {
+						$ai = $cars[$ci];
+						if ($ai['finished']) {
+							$ai['speed'] *= 0.92;
+							$cars[$ci] = $ai;
+							continue;
+						}
+						$targetIdx = ($ai['wayIdx'] + 5) % $nWay;
+						$tp = $way[$targetIdx];
+						$nextTp = $way[($targetIdx + 3) % $nWay];
+						$tang = atan2($nextTp[1] - $tp[1], $nextTp[0] - $tp[0]);
+						$tx = $tp[0] - sin($tang) * $ai['laneOff'];
+						$ty = $tp[1] + cos($tang) * $ai['laneOff'];
+
+						$dx = $tx - $ai['x'];
+						$dy = $ty - $ai['y'];
+						$dist = hypot($dx, $dy);
+						if ($dist < 18) {
+							$ai['wayIdx'] = $targetIdx;
+						}
+						$desiredAng = atan2($dy, $dx);
+						$diff = $desiredAng - $ai['ang'];
+						while ($diff > M_PI) $diff -= 2 * M_PI;
+						while ($diff < -M_PI) $diff += 2 * M_PI;
+						$ai['ang'] += max(-0.22, min(0.22, $diff));
+						$ai['speed'] = min($ai['aiSpeed'], $ai['speed'] + 0.24);
+						$ai['vx'] = cos($ai['ang']) * $ai['speed'];
+						$ai['vy'] = sin($ai['ang']) * $ai['speed'];
+						$ai['x'] += $ai['vx'];
+						$ai['y'] += $ai['vy'];
+						$cars[$ci] = $ai;
+					}
+
+					// 5. Car-to-Car collisions
+					for ($i = 0; $i < 4; $i++) {
+						for ($j = $i + 1; $j < 4; $j++) {
+							$dx = $cars[$j]['x'] - $cars[$i]['x'];
+							$dy = $cars[$j]['y'] - $cars[$i]['y'];
+							$d = hypot($dx, $dy);
+							if ($d > 0.1 && $d < 16.0) {
+								$push = (16.0 - $d) * 0.5;
+								$nx = $dx / $d;
+								$ny = $dy / $d;
+								$cars[$i]['x'] -= $nx * $push;
+								$cars[$i]['y'] -= $ny * $push;
+								$cars[$j]['x'] += $nx * $push;
+								$cars[$j]['y'] += $ny * $push;
+								if (!$muted && $i === 0 && $raceTick % 5 === 0) {
+									sound(165, 55, 4);
+								}
+							}
+						}
+					}
+
+					// 6. Local spline checkpoint & Lap completion
+					for ($ci = 0; $ci < 4; $ci++) {
+						if ($cars[$ci]['finished']) continue;
+						$near = __sprint_nearest_way($trk, $cars[$ci]['x'], $cars[$ci]['y'], $cars[$ci]['wayIdx']);
+						$bestWi = $near[0];
+						$q = intdiv($bestWi * 4, $nWay);
+						if ($q === ($cars[$ci]['cp'] + 1)) {
+							$cars[$ci]['cp'] = $q;
+						} elseif ($cars[$ci]['cp'] === 3 && $q === 0) {
+							$cars[$ci]['cp'] = 0;
+							$cars[$ci]['lap']++;
+							if ($ci === 0) {
+								$score += 150;
+								if ($score > $highScore) $highScore = $score;
+								if ($cars[0]['lap'] <= $LAPS_TARGET) {
+									if (!$muted) sound('C6', 140, 3);
+									$statusMsg = 'LAP ' . $cars[0]['lap'] . '!';
+									$statusTimer = 28;
+								}
+							}
+							if ($cars[$ci]['lap'] > $LAPS_TARGET) {
+								$cars[$ci]['finished'] = true;
+								$finishOrder[] = $ci;
+								$cars[$ci]['finishRank'] = count($finishOrder);
+								if ($ci === 0) {
+									$rankPts = [0, 1000, 500, 250, 100];
+									$score += $rankPts[$cars[0]['finishRank']];
+									if ($score > $highScore) $highScore = $score;
+									$raceOver = true;
+								}
+							}
+						}
+						$cars[$ci]['wayIdx'] = $bestWi;
+					}
+				}
+
+				// Modulate continuous dual-channel AdLib FM motor audio smoothly
+				if (!$muted && $engineStarted && abs($targetEngHz - $lastEngHz) >= 2) {
+					sound_freq(0, $targetEngHz, 35);
+					sound_freq(5, $targetEngHz, 35);
+					$lastEngHz = $targetEngHz;
+				}
+
+				if ($statusTimer > 0) {
+					$statusTimer--;
+					if ($statusTimer === 0) $statusMsg = '';
+				}
+
+				$playerProg = $cars[0]['lap'] * 1000 + $cars[0]['cp'] * 200 + $cars[0]['wayIdx'];
+				$playerPos = 1;
+				for ($ci = 1; $ci < 4; $ci++) {
+					$aiProg = $cars[$ci]['lap'] * 1000 + $cars[$ci]['cp'] * 200 + $cars[$ci]['wayIdx'];
+					if ($aiProg > $playerProg) $playerPos++;
+				}
+
+				// 7. Instant VRAM dirty-rect background restore (< 0.5 ms total!)
+				foreach ($dirtyRects as $dr) {
+					screen_restore($dr[0], $dr[1], $dr[2], $dr[3]);
+				}
+				if ($gantryWasDrawn && $countdownTicks === 0) {
+					screen_restore(258, 152, 382, 192);
+					$gantryWasDrawn = false;
+				}
+
+				$nextDirty = [];
+
+				// Gold Wrench Pickup
+				if ($wrenchActive) {
+					__sprint_draw_wrench($wrenchX, $wrenchY, (($frameCount >> 2) % 2) === 0);
+					$nextDirty[] = [$wrenchX - 8, $wrenchY - 8, $wrenchX + 8, $wrenchY + 8];
+				}
+
+				// Draw all 4 F1 cars
+				for ($ci = 3; $ci >= 0; $ci--) {
+					$cObj = $cars[$ci];
+					__sprint_draw_car($cObj['x'], $cObj['y'], $cObj['ang'], $cObj['col'], $cObj['trim']);
+					$ix = (int) round($cObj['x']);
+					$iy = (int) round($cObj['y']);
+					$nextDirty[] = [$ix - 12, $iy - 12, $ix + 12, $iy + 12];
+				}
+				$dirtyRects = $nextDirty;
+
+				// Starting Gantry Lights during countdown
+				if ($countdownTicks > 0) {
+					$lit = 4 - intdiv($countdownTicks + 17, 18);
+					box(260, 156, 380, 188, 0, true);
+					for ($li = 0; $li < 3; $li++) {
+						$lx = 284 + $li * 36;
+						box($lx - 6, 166, $lx + 6, 178, ($li < $lit ? 12 : 8), true);
+					}
+					$gantryWasDrawn = true;
+				}
+
+				// 8. Dirty-checked dynamic HUD updates
+				$hudTop = sprintf("LAP:%d/%d  POS:%d/4  TRK:%d/3  SCORE:%06d", min($LAPS_TARGET, $cars[0]['lap']), $LAPS_TARGET, $playerPos, ($trackIdx % count($tracksDef)) + 1, $score);
+				if ($hudTop !== $lastHudTop) {
+					pencolor(15);
+					locate(1, 26);
+					echo $hudTop;
+					$lastHudTop = $hudTop;
+				}
+
+				$hudSub = sprintf("WRENCH:%-2d  TURBO:LV%d", $wrenches, $turboLvl);
+				if ($hudSub !== $lastHudSub) {
+					pencolor(11);
+					locate(2, 22);
+					echo $hudSub;
+					$lastHudSub = $hudSub;
+				}
+
+				if ($statusMsg !== $lastStatus) {
+					pencolor($statusMsg !== '' ? 14 : 0);
+					locate(2, 46);
+					echo sprintf("%-18s", $statusMsg);
+					$lastStatus = $statusMsg;
+				}
+
+				if ($raceOver) {
+					sound_stop();
+					$engineStarted = false;
+					if (!$muted) {
+						$rank = $cars[0]['finishRank'];
+						if ($rank === 1) {
+							play("T210 O5 L16 C E G > C E8 G8 > C4", 4, false);
+						} else {
+							play("T180 O4 L16 G A B > C4", 4, false);
+						}
+					}
+					$ord = ['', '1ST PLACE!', '2ND PLACE!', '3RD PLACE!', '4TH PLACE'];
+					box(152, 152, 488, 238, 0, true);
+					box(154, 154, 486, 236, 14, false);
+					pencolor(14);
+					locate(11, 29);
+					echo "FINISH: " . $ord[$cars[0]['finishRank']];
+					pencolor(15);
+					locate(13, 25);
+					echo "SCORE: " . $score . "   HI: " . $highScore;
+					locate(14, 24);
+					echo "SPACE: Next Race   Q/ESC: Exit";
+
+					while ($running && screen_mode()) {
+						$k2 = lower(inkey());
+						if ($k2 === 'q') {
+							$running = false;
+							break;
+						}
+						if ($k2 === ' ') {
+							$trackIdx++;
+							break;
+						}
+						usleep(50000);
+					}
+					break;
+				}
+
+				usleep(36000);
+			}
+		}
+
+		sound_stop();
+		for ($c = 0; $c < 6; $c++) {
+			voice($c, 'lead');
+		}
+		pencolor(15);
+		if (screen_mode()) {
+			screen(0);
+		}
+		return true;
+	}
+}
+
+if (!isset($supersprint_no_autorun) || !$supersprint_no_autorun) {
+	supersprint_demo();
+}

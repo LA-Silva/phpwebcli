@@ -35,6 +35,13 @@ if (!function_exists('note_off')) {
 	}
 }
 
+if (!function_exists('sound_freq')) {
+	function sound_freq($channel = 0, $note_or_freq = 440, $glide_ms = 25) {
+		global $bridge;
+		return (bool) $bridge->soundFreq((int) $channel, $note_or_freq, (int) $glide_ms);
+	}
+}
+
 if (!function_exists('sound_stop')) {
 	function sound_stop() {
 		global $bridge;

@@ -35,6 +35,8 @@ return call_user_func(function($verbose) {
 	voice(0, 'lead');
 	$onOk = note_on(0, 'A4', 90);
 	$stateOn = $bridge->soundState();
+	$glideOk = sound_freq(0, 660, 20);
+	$stateGlide = $bridge->soundState();
 	$offOk = note_off(0);
 	$stateOff = $bridge->soundState();
 
@@ -54,6 +56,7 @@ return call_user_func(function($verbose) {
 		['note-to-Hz converts A4=440Hz, C4~261.63Hz, and preserves numeric Hz', abs($hzA4 - 440.0) < 0.01 && abs($hzC4 - 261.625) < 0.05 && $hzNum === 523.25, true],
 		['MML parser handles tempo, octave, lengths, rests, and > shift', count($mml['events']) === 5 && $mml['events'][0]['type'] === 'note' && $mml['events'][3]['type'] === 'rest' && abs($mml['events'][4]['freq'] - 523.251) < 0.1, true],
 		['note_on() activates channel state and note_off() releases it', $onOk && $stateOn['channels'][0]['active'] === true && abs($stateOn['channels'][0]['freq'] - 440) < 0.01 && $offOk && $stateOff['channels'][0]['active'] === false, true],
+		['sound_freq() updates active channel pitch smoothly without restarting', $glideOk && $stateGlide['channels'][0]['active'] === true && abs($stateGlide['channels'][0]['freq'] - 660) < 0.01, true],
 		['sound(), play(..., false), and sound_stop() silence all channels cleanly', $toneOk && $playBgOk && $stopOk && $stateStopped['channels'][1]['active'] === false && $stateStopped['channels'][3]['active'] === false, true],
 	];
 
